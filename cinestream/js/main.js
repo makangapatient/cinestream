@@ -132,7 +132,12 @@
     renderGrid('seriesGrid', series, 8);
   }
 
+  // Wait for TMDB data before rendering
+ document.addEventListener('dataReady', () => {
   renderAll();
+  updateHero(0);
+  startHeroTimer();
+});
 
   /* ====================================================
      GENRE FILTER
