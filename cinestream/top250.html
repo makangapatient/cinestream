@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Top 250 — CineStream</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .page-hero{background:linear-gradient(135deg,#0a0a0f 0%,#1a1200 100%);padding:120px 0 40px}
+    .page-hero h1{font-family:var(--font-head);font-size:48px;letter-spacing:3px;color:#fff;margin-bottom:8px}
+    .page-hero p{color:var(--muted);font-size:15px}
+    .top-list{padding:32px 0 60px;display:flex;flex-direction:column;gap:12px}
+    .top-item{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:12px;cursor:pointer;transition:all var(--transition)}
+    .top-item:hover{background:var(--bg3);border-color:rgba(255,255,255,.15);transform:translateX(4px)}
+    .top-rank{font-family:var(--font-head);font-size:28px;letter-spacing:1px;min-width:52px;text-align:center;color:var(--muted)}
+    .top-rank.gold{color:var(--gold)}
+    .top-rank.silver{color:#c0c0c0}
+    .top-rank.bronze{color:#cd7f32}
+    .top-poster{width:52px;height:74px;object-fit:cover;border-radius:6px;flex-shrink:0}
+    .top-info{flex:1;min-width:0}
+    .top-title{font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .top-meta{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+    .top-rating-big{font-family:var(--font-head);font-size:26px;color:var(--gold);flex-shrink:0;letter-spacing:1px}
+    .top-watch-btn{flex-shrink:0;padding:8px 18px;background:var(--primary);color:#fff;border-radius:6px;font-size:13px;font-weight:600;transition:all var(--transition)}
+    .top-watch-btn:hover{background:var(--primary-d)}
+    @media(max-width:600px){.top-rank{font-size:20px;min-width:36px}.top-title{font-size:14px}.top-watch-btn{display:none}}
+  </style>
+</head>
+<body>
+  <nav class="navbar scrolled" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="movies.html" class="nav-link">Movies</a>
+        <a href="series.html" class="nav-link">TV Series</a>
+        <a href="top250.html" class="nav-link active">Top 250</a>
+      </div>
+      <div class="nav-right">
+        <div class="search-wrap">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search..." autocomplete="off" />
+          <button class="search-btn" id="searchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></button>
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <button class="nav-menu-btn" id="menuBtn"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html">🏠 Home</a><a href="movies.html">🎬 Movies</a><a href="series.html">📺 TV Series</a><a href="top250.html">⭐ Top 250</a>
+  </div>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>⭐ TOP 250</h1>
+      <p>The highest-rated movies and TV shows on CineStream, ranked by user rating</p>
+    </div>
+  </div>
+
+  <main>
+    <div class="container">
+      <div class="top-list" id="topList"></div>
+    </div>
+  </main>
+
+  <!-- Modal & Player -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-hero"><img src="" alt="" class="modal-backdrop" id="modalBackdrop" /><div class="modal-hero-overlay"></div>
+        <div class="modal-hero-info">
+          <div class="modal-badges" id="modalBadges"></div>
+          <h2 class="modal-title" id="modalTitle"></h2>
+          <div class="modal-meta" id="modalMeta"></div>
+          <div class="modal-actions">
+            <button class="btn-watch" id="modalWatchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Watch Now</button>
+            <button class="btn-watchlist" id="modalWatchlistBtn">+ Watchlist</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-left"><h3>Overview</h3><p class="modal-desc" id="modalDesc"></p><div class="modal-details" id="modalDetails"></div></div>
+        <div class="modal-right"><h3>You May Also Like</h3><div class="related-grid" id="relatedGrid"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="player-overlay" id="playerOverlay">
+    <div class="player-container">
+      <div class="player-header"><span class="player-title" id="playerTitle"></span><button class="player-close" id="playerClose">✕</button></div>
+      <div class="player-wrap"><div class="player-screen" id="playerScreen"><div class="player-placeholder"><div class="player-logo">▶</div><p>CineStream Player</p></div></div></div>
+      <div class="player-sources"><span class="sources-label">Servers:</span><button class="source-btn active">Server 1</button><button class="source-btn">Server 2</button></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand"><a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a><p>Watch free HD movies and TV series online.</p></div>
+        <div class="footer-links"><h4>Quick Links</h4><a href="movies.html">Movies</a><a href="series.html">TV Series</a><a href="top250.html">Top 250</a></div>
+        <div class="footer-links"><h4>Info</h4><a href="#">About</a><a href="#">DMCA</a><a href="#">Privacy</a></div>
+        <div class="footer-links"><h4>Genres</h4><a href="#">Drama</a><a href="#">Action</a><a href="#">Comedy</a></div>
+      </div>
+      <div class="footer-bottom"><p>© 2024 CineStream. All rights reserved.</p></div>
+    </div>
+  </footer>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    const sorted = [...ALL_CONTENT].sort((a,b) => b.rating - a.rating);
+    const list = document.getElementById('topList');
+    sorted.forEach((item, i) => {
+      const rank = i + 1;
+      const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+      const div = document.createElement('div');
+      div.className = 'top-item';
+      div.innerHTML = `
+        <div class="top-rank ${rankClass}">#${rank}</div>
+        <img class="top-poster" src="${item.poster}" alt="${item.title}" loading="lazy" onerror="this.style.opacity=0">
+        <div class="top-info">
+          <div class="top-title">${item.title}</div>
+          <div class="top-meta">
+            <span>${item.year}</span>
+            <span style="text-transform:capitalize">${item.genre}</span>
+            <span>${item.duration}</span>
+            ${item.type === 'series' ? '<span>📺 Series</span>' : '<span>🎬 Movie</span>'}
+          </div>
+        </div>
+        <div class="top-rating-big">⭐ ${item.rating}</div>
+        <button class="top-watch-btn">▶ Watch</button>`;
+      div.addEventListener('click', () => openModal(item));
+      div.querySelector('.top-watch-btn').addEventListener('click', e => { e.stopPropagation(); openPlayer(item); });
+      list.appendChild(div);
+    });
+  </script>
+</body>
+</html>

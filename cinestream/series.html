@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TV Series — CineStream</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .page-hero{background:linear-gradient(135deg,#0a0a0f 0%,#0d1b2a 100%);padding:120px 0 40px}
+    .page-hero h1{font-family:var(--font-head);font-size:48px;letter-spacing:3px;color:#fff;margin-bottom:8px}
+    .page-hero p{color:var(--muted);font-size:15px}
+    .filter-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 0;position:sticky;top:var(--nav-h);z-index:100}
+    .filter-inner{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .filter-select{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;font-family:var(--font-body);outline:none;cursor:pointer}
+    .results-count{margin-left:auto;font-size:13px;color:var(--muted)}
+    .browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;padding:32px 0 60px}
+    @media(min-width:768px){.browse-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
+    .load-more-wrap{text-align:center;padding:20px 0 60px}
+    .btn-load-more{padding:13px 40px;background:var(--primary);color:#fff;border-radius:8px;font-size:15px;font-weight:600;transition:all var(--transition)}
+    .btn-load-more:hover{background:var(--primary-d);transform:translateY(-2px)}
+    .series-card-seasons{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+  </style>
+</head>
+<body>
+  <nav class="navbar scrolled" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="movies.html" class="nav-link">Movies</a>
+        <a href="series.html" class="nav-link active">TV Series</a>
+        <a href="top250.html" class="nav-link">Top 250</a>
+      </div>
+      <div class="nav-right">
+        <div class="search-wrap">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search series..." autocomplete="off" />
+          <button class="search-btn" id="searchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></button>
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <button class="nav-menu-btn" id="menuBtn"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html">🏠 Home</a><a href="movies.html">🎬 Movies</a><a href="series.html">📺 TV Series</a><a href="top250.html">⭐ Top 250</a>
+  </div>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>📺 TV SERIES</h1>
+      <p>Binge-watch the best TV shows, all in HD for free</p>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="container">
+      <div class="filter-inner">
+        <span style="font-size:13px;color:var(--muted)">Filter:</span>
+        <select class="filter-select" id="filterGenre">
+          <option value="all">All Genres</option>
+          <option value="action">Action</option>
+          <option value="comedy">Comedy</option>
+          <option value="drama">Drama</option>
+          <option value="thriller">Thriller</option>
+          <option value="sci-fi">Sci-Fi</option>
+          <option value="crime">Crime</option>
+        </select>
+        <select class="filter-select" id="sortBy">
+          <option value="rating">Sort: Top Rated</option>
+          <option value="year">Sort: Newest</option>
+          <option value="title">Sort: A–Z</option>
+        </select>
+        <span class="results-count" id="resultsCount">0 series</span>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="container">
+      <div class="browse-grid" id="browseGrid"></div>
+      <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+        <button class="btn-load-more" id="loadMoreBtn">Load More Series</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-hero"><img src="" alt="" class="modal-backdrop" id="modalBackdrop" /><div class="modal-hero-overlay"></div>
+        <div class="modal-hero-info">
+          <div class="modal-badges" id="modalBadges"></div>
+          <h2 class="modal-title" id="modalTitle"></h2>
+          <div class="modal-meta" id="modalMeta"></div>
+          <div class="modal-actions">
+            <button class="btn-watch" id="modalWatchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Watch Now</button>
+            <button class="btn-watchlist" id="modalWatchlistBtn">+ Watchlist</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-left"><h3>Overview</h3><p class="modal-desc" id="modalDesc"></p><div class="modal-details" id="modalDetails"></div></div>
+        <div class="modal-right"><h3>You May Also Like</h3><div class="related-grid" id="relatedGrid"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="player-overlay" id="playerOverlay">
+    <div class="player-container">
+      <div class="player-header"><span class="player-title" id="playerTitle"></span><button class="player-close" id="playerClose">✕</button></div>
+      <div class="player-wrap"><div class="player-screen" id="playerScreen"><div class="player-placeholder"><div class="player-logo">▶</div><p>CineStream Player</p></div></div></div>
+      <div class="player-sources"><span class="sources-label">Servers:</span><button class="source-btn active">Server 1</button><button class="source-btn">Server 2</button></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand"><a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a><p>Watch free HD movies and TV series online.</p></div>
+        <div class="footer-links"><h4>Quick Links</h4><a href="movies.html">Movies</a><a href="series.html">TV Series</a><a href="top250.html">Top 250</a></div>
+        <div class="footer-links"><h4>Info</h4><a href="#">About</a><a href="#">DMCA</a><a href="#">Privacy</a></div>
+        <div class="footer-links"><h4>Genres</h4><a href="#">Drama</a><a href="#">Action</a><a href="#">Comedy</a></div>
+      </div>
+      <div class="footer-bottom"><p>© 2024 CineStream. All rights reserved.</p></div>
+    </div>
+  </footer>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    let page = 1, perPage = 16, filtered = [];
+    function applyFilters() {
+      const genre = document.getElementById('filterGenre').value;
+      const sort  = document.getElementById('sortBy').value;
+      filtered = SERIES.filter(m => genre === 'all' || m.genre === genre);
+      if (sort === 'rating') filtered.sort((a,b) => b.rating - a.rating);
+      if (sort === 'year')   filtered.sort((a,b) => b.year - a.year);
+      if (sort === 'title')  filtered.sort((a,b) => a.title.localeCompare(b.title));
+      page = 1; renderBrowse(true);
+    }
+    function renderBrowse(reset) {
+      const grid = document.getElementById('browseGrid');
+      if (reset) grid.innerHTML = '';
+      filtered.slice((page-1)*perPage, page*perPage).forEach(item => {
+        const card = buildCard(item);
+        if (item.seasons) {
+          const s = document.createElement('div');
+          s.className = 'series-card-seasons'; s.textContent = item.seasons + ' Season' + (item.seasons > 1 ? 's' : '');
+          card.appendChild(s);
+        }
+        grid.appendChild(card);
+      });
+      document.getElementById('resultsCount').textContent = filtered.length + ' series';
+      document.getElementById('loadMoreWrap').style.display = page * perPage < filtered.length ? 'block' : 'none';
+    }
+    document.getElementById('loadMoreBtn').addEventListener('click', () => { page++; renderBrowse(false); });
+    ['filterGenre','sortBy'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+    applyFilters();
+  </script>
+</body>
+</html>

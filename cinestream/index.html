@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CineStream — Watch Free Movies & TV Shows Online</title>
+  <meta name="description" content="Stream thousands of movies and TV shows for free. HD quality, no registration required." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">▶</span>
+        <span class="logo-text">CINE<em>STREAM</em></span>
+      </a>
+      <div class="nav-links">
+        <a href="#" class="nav-link active" data-filter="all">Home</a>
+        <a href="#" class="nav-link" data-page="movies">Movies</a>
+        <a href="#" class="nav-link" data-page="series">TV Series</a>
+        <a href="#" class="nav-link" data-page="trending">Trending</a>
+        <a href="#" class="nav-link" data-page="top250">Top 250</a>
+      </div>
+      <div class="nav-right">
+        <div class="search-wrap">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search movies, shows..." autocomplete="off" />
+          <button class="search-btn" id="searchBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <button class="nav-menu-btn" id="menuBtn">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MOBILE MENU -->
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#" data-page="movies">🎬 Movies</a>
+    <a href="#" data-page="series">📺 TV Series</a>
+    <a href="#" data-page="trending">🔥 Trending</a>
+    <a href="#" data-page="top250">⭐ Top 250</a>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content" id="heroContent">
+      <div class="hero-badges">
+        <span class="badge badge-hd">HD</span>
+        <span class="badge badge-free">FREE</span>
+        <span class="badge-genre" id="heroGenre">Action</span>
+      </div>
+      <h1 class="hero-title" id="heroTitle">Loading...</h1>
+      <p class="hero-desc" id="heroDesc">Loading description...</p>
+      <div class="hero-meta">
+        <span class="hero-rating" id="heroRating">⭐ 8.5</span>
+        <span class="hero-year" id="heroYear">2024</span>
+        <span class="hero-duration" id="heroDuration">2h 15m</span>
+      </div>
+      <div class="hero-actions">
+        <button class="btn-watch" id="heroWatchBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Watch Now
+        </button>
+        <button class="btn-info" id="heroInfoBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          More Info
+        </button>
+      </div>
+    </div>
+    <div class="hero-nav">
+      <button class="hero-dot active" data-idx="0"></button>
+      <button class="hero-dot" data-idx="1"></button>
+      <button class="hero-dot" data-idx="2"></button>
+      <button class="hero-dot" data-idx="3"></button>
+      <button class="hero-dot" data-idx="4"></button>
+    </div>
+  </section>
+
+  <!-- MAIN CONTENT -->
+  <main class="main" id="main">
+
+    <!-- Genre Filter -->
+    <section class="genre-bar">
+      <div class="container">
+        <div class="genre-scroll">
+          <button class="genre-btn active" data-genre="all">All</button>
+          <button class="genre-btn" data-genre="action">Action</button>
+          <button class="genre-btn" data-genre="comedy">Comedy</button>
+          <button class="genre-btn" data-genre="drama">Drama</button>
+          <button class="genre-btn" data-genre="horror">Horror</button>
+          <button class="genre-btn" data-genre="sci-fi">Sci-Fi</button>
+          <button class="genre-btn" data-genre="thriller">Thriller</button>
+          <button class="genre-btn" data-genre="romance">Romance</button>
+          <button class="genre-btn" data-genre="animation">Animation</button>
+          <button class="genre-btn" data-genre="documentary">Documentary</button>
+          <button class="genre-btn" data-genre="crime">Crime</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trending Now -->
+    <section class="section" id="trendingSection">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title"><span class="fire">🔥</span> Trending Now</h2>
+          <a href="#" class="see-all" data-page="trending">See All →</a>
+        </div>
+        <div class="movies-grid" id="trendingGrid"></div>
+      </div>
+    </section>
+
+    <!-- Latest Movies -->
+    <section class="section" id="latestSection">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">🎬 Latest Movies</h2>
+          <a href="#" class="see-all" data-page="movies">See All →</a>
+        </div>
+        <div class="movies-grid" id="latestGrid"></div>
+      </div>
+    </section>
+
+    <!-- Top Rated -->
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">⭐ Top Rated</h2>
+          <a href="#" class="see-all" data-page="top250">See All →</a>
+        </div>
+        <div class="movies-grid" id="topRatedGrid"></div>
+      </div>
+    </section>
+
+    <!-- TV Series -->
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">📺 Popular TV Series</h2>
+          <a href="#" class="see-all" data-page="series">See All →</a>
+        </div>
+        <div class="movies-grid" id="seriesGrid"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MOVIE MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-hero">
+        <img src="" alt="" class="modal-backdrop" id="modalBackdrop" />
+        <div class="modal-hero-overlay"></div>
+        <div class="modal-hero-info">
+          <div class="modal-badges" id="modalBadges"></div>
+          <h2 class="modal-title" id="modalTitle"></h2>
+          <div class="modal-meta" id="modalMeta"></div>
+          <div class="modal-actions">
+            <button class="btn-watch" id="modalWatchBtn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Watch Now
+            </button>
+            <button class="btn-trailer" id="modalTrailerBtn">🎬 Trailer</button>
+            <button class="btn-watchlist" id="modalWatchlistBtn">+ Watchlist</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-left">
+          <h3>Overview</h3>
+          <p class="modal-desc" id="modalDesc"></p>
+          <div class="modal-details" id="modalDetails"></div>
+        </div>
+        <div class="modal-right">
+          <h3>You May Also Like</h3>
+          <div class="related-grid" id="relatedGrid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYER MODAL -->
+  <div class="player-overlay" id="playerOverlay">
+    <div class="player-container" id="playerContainer">
+      <div class="player-header">
+        <span class="player-title" id="playerTitle"></span>
+        <button class="player-close" id="playerClose">✕</button>
+      </div>
+      <div class="player-wrap">
+        <div class="player-screen" id="playerScreen">
+          <div class="player-placeholder">
+            <div class="player-logo">▶</div>
+            <p>CineStream Player</p>
+            <p class="player-sub">Embed your video source URL in js/main.js</p>
+          </div>
+        </div>
+      </div>
+      <div class="player-sources" id="playerSources">
+        <span class="sources-label">Servers:</span>
+        <button class="source-btn active">Server 1</button>
+        <button class="source-btn">Server 2</button>
+        <button class="source-btn">Server 3</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="nav-logo">
+            <span class="logo-icon">▶</span>
+            <span class="logo-text">CINE<em>STREAM</em></span>
+          </a>
+          <p>Stream thousands of movies and TV shows for free. HD quality, updated daily.</p>
+          <div class="social-links">
+            <a href="#" class="social-link">𝕏</a>
+            <a href="#" class="social-link">f</a>
+            <a href="#" class="social-link">in</a>
+            <a href="#" class="social-link">▶</a>
+          </div>
+        </div>
+        <div class="footer-links">
+          <h4>Movies</h4>
+          <a href="#">Action</a>
+          <a href="#">Comedy</a>
+          <a href="#">Drama</a>
+          <a href="#">Horror</a>
+          <a href="#">Sci-Fi</a>
+        </div>
+        <div class="footer-links">
+          <h4>TV Shows</h4>
+          <a href="#">Popular Series</a>
+          <a href="#">New Episodes</a>
+          <a href="#">Top Rated</a>
+          <a href="#">Anime</a>
+          <a href="#">Documentary</a>
+        </div>
+        <div class="footer-links">
+          <h4>Info</h4>
+          <a href="#">About Us</a>
+          <a href="#">Contact</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">DMCA</a>
+          <a href="#">FAQ</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2024 CineStream. All rights reserved. | For entertainment purposes only.</p>
+        <p class="footer-disclaimer">We do not host any files on our servers. All content is provided by non-affiliated third parties.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
