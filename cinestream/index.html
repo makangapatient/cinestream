@@ -257,25 +257,37 @@
   <!-- PLAYER MODAL -->
   <div class="player-overlay" id="playerOverlay">
     <div class="player-container" id="playerContainer">
+  
+      <!-- Top bar -->
       <div class="player-header">
         <span class="player-title" id="playerTitle"></span>
-        <button class="player-close" id="playerClose">✕</button>
+        <div class="player-header-right">
+          <button class="player-btn" id="playerPip" title="Picture in Picture">⧉</button>
+          <button class="player-close" id="playerClose" title="Close">✕</button>
+        </div>
       </div>
-      <div class="player-wrap">
+  
+      <!-- Video -->
+      <div class="player-wrap" id="playerWrap">
         <div class="player-screen" id="playerScreen">
           <div class="player-placeholder">
             <div class="player-logo">▶</div>
             <p>CineStream Player</p>
-            <p class="player-sub">Embed your video source URL in js/main.js</p>
           </div>
         </div>
       </div>
-      <div class="player-sources" id="playerSources">
+  
+      <!-- Bottom bar -->
+      <div class="player-bottom" id="playerBottom">
         <span class="sources-label">Servers:</span>
-        <button class="source-btn active">Server 1</button>
-        <button class="source-btn">Server 2</button>
-        <button class="source-btn">Server 3</button>
+        <button class="source-btn active" data-server="0">Server 1</button>
+        <button class="source-btn" data-server="1">Server 2</button>
+        <button class="source-btn" data-server="2">Server 3</button>
+        <button class="player-fullscreen-btn" id="playerFullscreen">
+          ⛶ Fullscreen
+        </button>
       </div>
+  
     </div>
   </div>
 

@@ -380,63 +380,118 @@ if (ALL_CONTENT.length) buildYearButtons();
   /* ====================================================
      VIDEO PLAYER
   ==================================================== */
-   function openPlayer(item) {
-  $('playerTitle').textContent = item.title;
+let currentServers = [];
+let uiHideTimer;
 
+function openPlayer(item) {
+  $('playerTitle').textContent = item.title;
   const screen = $('playerScreen');
 
-  // Use TMDB ID to get embed
-  let embedUrl = '';
-  if (item.type === 'series') {
-    embedUrl = `https://vidsrc.to/embed/tv/${item.id}/1/1`;
-  } else {
-    embedUrl = `https://vidsrc.to/embed/movie/${item.id}`;
-  }
+  currentServers = item.type === 'series'
+    ? [
+        `https://vidsrc.to/embed/tv/${item.id}/1/1`,
+        `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
+        `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
+      ]
+    : [
+        `https://vidsrc.to/embed/movie/${item.id}`,
+        `https://www.2embed.cc/embed/${item.id}`,
+        `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
+      ];
 
-  screen.innerHTML = `
-    <iframe
-      src="${embedUrl}"
-      allowfullscreen
-      allow="autoplay; fullscreen"
-      style="width:100%;height:100%;border:none">
-    </iframe>`;
+  loadServer(0, screen);
 
-  // Backup servers
-  const servers = [
-    item.type === 'series'
-      ? `https://vidsrc.to/embed/tv/${item.id}/1/1`
-      : `https://vidsrc.to/embed/movie/${item.id}`,
-    `https://www.2embed.cc/embed/${item.id}`,
-    `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
-  ];
-
-  $$('.source-btn').forEach((btn, i) => {
-    btn.onclick = () => {
+  // Server buttons
+  $$('.source-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.addEventListener('click', () => {
       $$('.source-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      screen.innerHTML = `
-        <iframe
-          src="${servers[i] || servers[0]}"
-          allowfullscreen
-          allow="autoplay; fullscreen"
-          style="width:100%;height:100%;border:none">
-        </iframe>`;
-    };
+      loadServer(parseInt(btn.dataset.server), screen);
+    });
   });
 
-  $('playerOverlay').classList.add('open');
+  // Fullscreen button
+  $('playerFullscreen').onclick = () => toggleFullscreen();
+
+  // Picture in Picture
+  $('playerPip').onclick = () => {
+    const iframe = screen.querySelector('iframe');
+    if (iframe) {
+      iframe.contentWindow.postMessage('pip', '*');
+      showToast('📺 Picture-in-Picture — use browser PiP button in address bar');
+    }
+  };
+
+  // Auto-hide UI on mouse stop
+  const overlay = $('playerOverlay');
+  overlay.addEventListener('mousemove', resetUiTimer);
+  overlay.addEventListener('touchstart', resetUiTimer);
+
+  overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
+  resetUiTimer();
 }
 
-  function closePlayer() {
-    $('playerOverlay').classList.remove('open');
-    $('playerScreen').innerHTML = '';
-    document.body.style.overflow = '';
+function loadServer(index, screen) {
+  const url = currentServers[index] || currentServers[0];
+  screen.innerHTML = `
+    <iframe
+      src="${url}"
+      allowfullscreen
+      allow="autoplay; fullscreen; picture-in-picture"
+      style="width:100%;height:100%;border:none">
+    </iframe>`;
+}
+
+function resetUiTimer() {
+  const overlay = $('playerOverlay');
+  overlay.classList.remove('hide-ui');
+  clearTimeout(uiHideTimer);
+  uiHideTimer = setTimeout(() => {
+    overlay.classList.add('hide-ui');
+  }, 3500);
+}
+
+function toggleFullscreen() {
+  const el = $('playerOverlay');
+  if (!document.fullscreenElement) {
+    el.requestFullscreen().catch(() => {
+      showToast('Fullscreen not supported in this browser');
+    });
+    $('playerFullscreen').textContent = '⊠ Exit Fullscreen';
+  } else {
+    document.exitFullscreen();
+    $('playerFullscreen').textContent = '⛶ Fullscreen';
   }
+}
 
-  $('playerClose').addEventListener('click', closePlayer);
-  $('playerOverlay').addEventListener('click', e => { if (e.target === $('playerOverlay')) closePlayer(); });
+// Fullscreen change event
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    $('playerFullscreen').textContent = '⛶ Fullscreen';
+  }
+});
 
+function closePlayer() {
+  $('playerOverlay').classList.remove('open', 'hide-ui');
+  $('playerScreen').innerHTML = '';
+  clearTimeout(uiHideTimer);
+  if (document.fullscreenElement) document.exitFullscreen();
+  document.body.style.overflow = '';
+}
+
+$('playerClose').addEventListener('click', closePlayer);
+$('playerOverlay').addEventListener('click', e => {
+  if (e.target === $('playerOverlay')) closePlayer();
+});
+
+// Keyboard: F = fullscreen, Escape = close
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closePlayer(); }
+  if (e.key === 'f' && $('playerOverlay').classList.contains('open')) toggleFullscreen();
+  if (e.key === '/' && !e.target.matches('input')) { e.preventDefault(); searchInput.focus(); }
+});
   /* ====================================================
      WATCHLIST
   ==================================================== */
