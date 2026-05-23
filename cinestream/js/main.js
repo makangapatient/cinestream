@@ -480,6 +480,18 @@ function closePlayer() {
   if (document.fullscreenElement) document.exitFullscreen();
   document.body.style.overflow = '';
 }
+  
+// Breadcrumb back link
+const backLink = $('playerCloseLink');
+if (backLink) {
+  backLink.onclick = (e) => {
+    e.preventDefault();
+    closePlayer();
+    // Scroll back to movies section
+    const el = document.getElementById('latestSection');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+}  
 
 $('playerClose').addEventListener('click', closePlayer);
 $('playerOverlay').addEventListener('click', e => {
