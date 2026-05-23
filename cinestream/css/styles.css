@@ -213,3 +213,67 @@ img{display:block}
   .search-wrap{display:none}
   .footer-grid{grid-template-columns:1fr}
 }
+
+/* ---- FILTER TABS ---- */
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 7px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: .03em;
+}
+
+.filter-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+}
+
+.filter-tab.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #000;
+  font-weight: 700;
+}
+
+.filter-panel {
+  margin-top: 4px;
+}
+
+/* Year buttons — smaller */
+.year-btn {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.year-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+}
+
+.year-btn.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #000;
+  font-weight: 700;
+}

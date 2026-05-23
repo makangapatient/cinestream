@@ -139,26 +139,115 @@
   startHeroTimer();
 });
 
-  /* ====================================================
-     GENRE FILTER
-  ==================================================== */
-  $$('.genre-btn').forEach(btn => {
+   /* ====================================================
+   FILTER SYSTEM — Tabs + Genre + Year + A-Z
+==================================================== */
+
+// Build year buttons dynamically
+function buildYearButtons() {
+  const panel = document.getElementById('panel-year');
+  if (!panel) return;
+  const currentYear = new Date().getFullYear();
+  let html = `<button class="year-btn active" data-year="all">All</button>`;
+  for (let y = currentYear + 1; y >= 1970; y--) {
+    html += `<button class="year-btn" data-year="${y}">${y}</button>`;
+  }
+  panel.innerHTML = html;
+
+  // Bind year buttons
+  panel.querySelectorAll('.year-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      $$('.genre-btn').forEach(b => b.classList.remove('active'));
+      panel.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      state.currentGenre = btn.dataset.genre;
-      filterByGenre(state.currentGenre);
+      const year = btn.dataset.year;
+      const filtered = year === 'all'
+        ? ALL_CONTENT
+        : ALL_CONTENT.filter(m => m.year === parseInt(year));
+      renderGrid('latestGrid', filtered, 20);
+      updateSectionTitle(`📅 ${year === 'all' ? 'All Years' : year}`);
+      scrollToLatest();
     });
   });
+}
 
-  function filterByGenre(genre) {
-    const filtered = genre === 'all' ? ALL_CONTENT : ALL_CONTENT.filter(m => m.genre === genre);
-    renderGrid('latestGrid', filtered, 12);
-    $('latestSection').querySelector('.section-title').textContent =
-      genre === 'all' ? '🎬 Latest Movies' : `🎬 ${genre.charAt(0).toUpperCase() + genre.slice(1)}`;
-    $('latestSection').querySelector('.section-header').style.display = 'flex';
-    document.getElementById('latestSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+// Filter tabs
+$$('.filter-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.filter-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const tabName = tab.dataset.tab;
+
+    // Hide all panels
+    document.querySelectorAll('.filter-panel').forEach(p => p.style.display = 'none');
+
+    if (tabName === 'popular') {
+      const sorted = [...ALL_CONTENT].sort((a,b) => b.rating - a.rating);
+      renderGrid('latestGrid', sorted, 20);
+      updateSectionTitle('🔥 Most Popular');
+      scrollToLatest();
+    }
+    else if (tabName === 'recent') {
+      const sorted = [...ALL_CONTENT].sort((a,b) => b.year - a.year);
+      renderGrid('latestGrid', sorted, 20);
+      updateSectionTitle('🆕 Recently Added');
+      scrollToLatest();
+    }
+    else if (tabName === 'genre') {
+      document.getElementById('panel-genre').style.display = 'flex';
+    }
+    else if (tabName === 'year') {
+      document.getElementById('panel-year').style.display = 'flex';
+    }
+    else if (tabName === 'az') {
+      document.getElementById('panel-az').style.display = 'flex';
+    }
+  });
+});
+
+// Genre buttons
+$$('.genre-btn[data-genre]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.genre-btn[data-genre]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const genre = btn.dataset.genre;
+    const filtered = genre === 'all'
+      ? ALL_CONTENT
+      : ALL_CONTENT.filter(m => m.genre === genre);
+    renderGrid('latestGrid', filtered, 20);
+    updateSectionTitle(genre === 'all' ? '🎬 All Movies' : `🎬 ${genre.charAt(0).toUpperCase() + genre.slice(1)}`);
+    scrollToLatest();
+  });
+});
+
+// A-Z buttons
+$$('.genre-btn[data-letter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.genre-btn[data-letter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const letter = btn.dataset.letter;
+    const filtered = letter === 'all'
+      ? ALL_CONTENT
+      : ALL_CONTENT.filter(m => m.title.toUpperCase().startsWith(letter));
+    renderGrid('latestGrid', filtered, 20);
+    updateSectionTitle(letter === 'all' ? '🔤 All Titles' : `🔤 Titles starting with "${letter}"`);
+    scrollToLatest();
+  });
+});
+
+function updateSectionTitle(title) {
+  const el = document.querySelector('#latestSection .section-title');
+  if (el) el.textContent = title;
+}
+
+function scrollToLatest() {
+  const el = document.getElementById('latestSection');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Build year buttons after data loads
+document.addEventListener('dataReady', buildYearButtons);
+// Also build immediately if data is already loaded
+if (ALL_CONTENT.length) buildYearButtons();
 
   /* ====================================================
      SEARCH

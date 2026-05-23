@@ -111,7 +111,17 @@
     <!-- Genre Filter -->
     <section class="genre-bar">
       <div class="container">
-        <div class="genre-scroll">
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-tab="popular">Popular</button>
+          <button class="filter-tab" data-tab="recent">Recent</button>
+          <button class="filter-tab" data-tab="genre">Genre</button>
+          <button class="filter-tab" data-tab="year">Year</button>
+          <button class="filter-tab" data-tab="az">A-Z</button>
+        </div>
+    
+        <!-- Genre Row -->
+        <div class="genre-scroll filter-panel" id="panel-genre">
           <button class="genre-btn active" data-genre="all">All</button>
           <button class="genre-btn" data-genre="action">Action</button>
           <button class="genre-btn" data-genre="comedy">Comedy</button>
@@ -123,6 +133,42 @@
           <button class="genre-btn" data-genre="animation">Animation</button>
           <button class="genre-btn" data-genre="documentary">Documentary</button>
           <button class="genre-btn" data-genre="crime">Crime</button>
+        </div>
+    
+        <!-- Year Row -->
+        <div class="genre-scroll filter-panel" id="panel-year" style="display:none">
+          <!-- Filled by JS -->
+        </div>
+    
+        <!-- A-Z Row -->
+        <div class="genre-scroll filter-panel" id="panel-az" style="display:none">
+          <button class="genre-btn active" data-letter="all">All</button>
+          <button class="genre-btn" data-letter="A">A</button>
+          <button class="genre-btn" data-letter="B">B</button>
+          <button class="genre-btn" data-letter="C">C</button>
+          <button class="genre-btn" data-letter="D">D</button>
+          <button class="genre-btn" data-letter="E">E</button>
+          <button class="genre-btn" data-letter="F">F</button>
+          <button class="genre-btn" data-letter="G">G</button>
+          <button class="genre-btn" data-letter="H">H</button>
+          <button class="genre-btn" data-letter="I">I</button>
+          <button class="genre-btn" data-letter="J">J</button>
+          <button class="genre-btn" data-letter="K">K</button>
+          <button class="genre-btn" data-letter="L">L</button>
+          <button class="genre-btn" data-letter="M">M</button>
+          <button class="genre-btn" data-letter="N">N</button>
+          <button class="genre-btn" data-letter="O">O</button>
+          <button class="genre-btn" data-letter="P">P</button>
+          <button class="genre-btn" data-letter="Q">Q</button>
+          <button class="genre-btn" data-letter="R">R</button>
+          <button class="genre-btn" data-letter="S">S</button>
+          <button class="genre-btn" data-letter="T">T</button>
+          <button class="genre-btn" data-letter="U">U</button>
+          <button class="genre-btn" data-letter="V">V</button>
+          <button class="genre-btn" data-letter="W">W</button>
+          <button class="genre-btn" data-letter="X">X</button>
+          <button class="genre-btn" data-letter="Y">Y</button>
+          <button class="genre-btn" data-letter="Z">Z</button>
         </div>
       </div>
     </section>
