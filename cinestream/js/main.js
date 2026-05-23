@@ -289,41 +289,55 @@
   $('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOverlay')) closeModal(); });
 
   /* ====================================================
-     PLAYER
+     VIDEO PLAYER
   ==================================================== */
-  function openPlayer(item) {
-    $('playerTitle').textContent = item.title;
+   function openPlayer(item) {
+  $('playerTitle').textContent = item.title;
 
-    // Replace with real embed URL — examples:
-    // VidSrc: `https://vidsrc.to/embed/movie/${imdbId}`
-    // 2embed: `https://www.2embed.cc/embed/${imdbId}`
-    // SuperEmbed: `https://multiembed.mov/?video_id=${imdbId}&tmdb=1`
-    const embedUrl = ''; // Set your embed URL here
+  const screen = $('playerScreen');
 
-    const screen = $('playerScreen');
-    if (embedUrl) {
-      screen.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; fullscreen"></iframe>`;
-    } else {
-      screen.innerHTML = `
-        <div class="player-placeholder">
-          <div class="player-logo">▶</div>
-          <p style="font-size:18px;color:#fff;margin-bottom:8px">${item.title}</p>
-          <p style="color:#7a7a90">Connect a video source to enable playback</p>
-          <p class="player-sub">Edit js/main.js → openPlayer() → set embedUrl</p>
-        </div>`;
-    }
-
-    // Source buttons
-    $$('.source-btn').forEach((btn, i) => {
-      btn.addEventListener('click', () => {
-        $$('.source-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-      });
-    });
-
-    $('playerOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+  // Use TMDB ID to get embed
+  let embedUrl = '';
+  if (item.type === 'series') {
+    embedUrl = `https://vidsrc.to/embed/tv/${item.id}/1/1`;
+  } else {
+    embedUrl = `https://vidsrc.to/embed/movie/${item.id}`;
   }
+
+  screen.innerHTML = `
+    <iframe
+      src="${embedUrl}"
+      allowfullscreen
+      allow="autoplay; fullscreen"
+      style="width:100%;height:100%;border:none">
+    </iframe>`;
+
+  // Backup servers
+  const servers = [
+    item.type === 'series'
+      ? `https://vidsrc.to/embed/tv/${item.id}/1/1`
+      : `https://vidsrc.to/embed/movie/${item.id}`,
+    `https://www.2embed.cc/embed/${item.id}`,
+    `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
+  ];
+
+  $$('.source-btn').forEach((btn, i) => {
+    btn.onclick = () => {
+      $$('.source-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      screen.innerHTML = `
+        <iframe
+          src="${servers[i] || servers[0]}"
+          allowfullscreen
+          allow="autoplay; fullscreen"
+          style="width:100%;height:100%;border:none">
+        </iframe>`;
+    };
+  });
+
+  $('playerOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
 
   function closePlayer() {
     $('playerOverlay').classList.remove('open');
