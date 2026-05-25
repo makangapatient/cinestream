@@ -255,36 +255,54 @@ if (ALL_CONTENT.length) buildYearButtons();
   const searchInput  = $('searchInput');
   const searchDropdown = $('searchDropdown');
 
-  searchInput.addEventListener('input', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
+searchInput.addEventListener('input', async () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
 
-    const results = ALL_CONTENT.filter(m =>
-      m.title.toLowerCase().includes(q) ||
-      m.genre.toLowerCase().includes(q) ||
-      (m.cast && m.cast.toLowerCase().includes(q))
-    ).slice(0, 8);
+  // Search local data first
+  let results = ALL_CONTENT.filter(m =>
+    m.title.toLowerCase().includes(q) ||
+    m.genre.toLowerCase().includes(q) ||
+    (m.cast && m.cast.toLowerCase().includes(q))
+  ).slice(0, 5);
 
-    searchDropdown.innerHTML = results.length
-      ? results.map(m => `
-          <div class="search-result-item" data-id="${m.id}">
-            <img src="${m.poster}" alt="${m.title}" onerror="this.src=''">
-            <div class="search-result-info">
-              <strong>${m.title}</strong>
-              <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
-            </div>
-          </div>`).join('')
-      : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
+  // Also search TMDB API for anything not in local data
+  if (q.length >= 3) {
+    const apiResults = await searchTMDB(q);
+    const localIds   = new Set(results.map(m => m.id));
+    const newResults = apiResults.filter(m => !localIds.has(m.id)).slice(0, 4);
+    results = [...results, ...newResults].slice(0, 8);
+  }
 
-    searchDropdown.classList.add('open');
+  searchDropdown.innerHTML = results.length
+    ? results.map(m => `
+        <div class="search-result-item" data-id="${m.id}" data-source="${ALL_CONTENT.find(x=>x.id===m.id)?'local':'api'}">
+          <img src="${m.poster}" alt="${m.title}" onerror="this.style.opacity=0">
+          <div class="search-result-info">
+            <strong>${m.title}</strong>
+            <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
+          </div>
+        </div>`).join('')
+    : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
 
-    searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-        if (item) { openModal(item); searchDropdown.classList.remove('open'); searchInput.value = ''; }
-      });
+  searchDropdown.classList.add('open');
+
+  searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+    el.addEventListener('click', () => {
+      // Check local first, otherwise use API result
+      let item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
+      if (!item) {
+        item = results.find(m => m.id === parseInt(el.dataset.id));
+        if (item) ALL_CONTENT.push(item); // Add to local data
+      }
+      if (item) {
+        openModal(item);
+        searchDropdown.classList.remove('open');
+        searchInput.value = '';
+      }
     });
   });
+});
 
   document.addEventListener('click', e => {
     if (!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
@@ -582,3 +600,35 @@ document.addEventListener('keydown', e => {
   });
 
 })();
+
+// Enhanced search — also queries TMDB API directly
+async function searchTMDB(query) {
+  const API_KEY = window.TMDB_KEY || '';
+  if (!API_KEY || query.length < 3) return [];
+
+  try {
+    const res  = await fetch(
+      `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}&page=1`
+    );
+    const data = await res.json();
+    return data.results
+      .filter(m => m.poster_path)
+      .map(m => ({
+        id:       m.id,
+        title:    m.title,
+        year:     m.release_date ? new Date(m.release_date).getFullYear() : '—',
+        rating:   Math.round(m.vote_average * 10) / 10,
+        duration: '—',
+        genre:    getGenreName ? getGenreName(m.genre_ids[0]) : 'drama',
+        type:     'movie',
+        desc:     m.overview,
+        poster:   `https://image.tmdb.org/t/p/w500${m.poster_path}`,
+        backdrop: m.backdrop_path
+          ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}`
+          : `https://image.tmdb.org/t/p/w500${m.poster_path}`,
+        tags:     ['HD'],
+      }));
+  } catch(e) {
+    return [];
+  }
+}

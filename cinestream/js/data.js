@@ -2,6 +2,9 @@
 // Replace poster URLs with real TMDB image URLs in production
 // Format: https://image.tmdb.org/t/p/w500{poster_path}
 
+// Make API key available globally for search
+window.TMDB_KEY = API_KEY;
+
  // CineStream — Live Movie Data from TMDB API
  // CineStream — Live Movie Data from TMDB API
 const API_KEY = 'c3253a09433a2690c968a64a5788c6d4';
@@ -12,7 +15,47 @@ const BACK_URL = 'https://image.tmdb.org/t/p/w1280';
 let MOVIES = [];
 let SERIES = [];
 let ALL_CONTENT = [];
-let HERO_ITEMS  = [];
+let HERO_ITEMS = [];
+
+// Fetch newest releases separately
+async function fetchLatestMovies() {
+  const latestMovies = [];
+  const endpoints = [
+    `${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=1`,
+    `${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=2`,
+    `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=1`,
+    `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=2`,
+    // Search specifically for 2026 movies
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&page=1`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=release_date.desc&page=1`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      data.results.forEach(m => {
+        if (!m.poster_path) return;
+        latestMovies.push({
+          id:       m.id,
+          title:    m.title,
+          year:     m.release_date ? new Date(m.release_date).getFullYear() : 2026,
+          rating:   Math.round(m.vote_average * 10) / 10,
+          duration: '—',
+          genre:    getGenreName(m.genre_ids[0]),
+          type:     'movie',
+          desc:     m.overview,
+          poster:   IMG_URL + m.poster_path,
+          backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
+          tags:     ['HD', 'New', 'Trending'],
+        });
+      });
+    } catch(e) {
+      console.warn('Latest fetch failed:', url);
+    }
+  }
+  return latestMovies;
+}
 
 // Fetch movies year by year (1970 to now)
 async function fetchAllMovies() {
@@ -37,7 +80,7 @@ async function fetchAllMovies() {
         `${BASE_URL}/discover/movie?api_key=${API_KEY}` +
         `&primary_release_year=${year}` +
         `&sort_by=popularity.desc` +
-        `&vote_count.gte=100` +
+        `&vote_count.gte=5` +
         `&page=1`
       );
       const data = await res.json();
@@ -115,22 +158,39 @@ async function initData() {
   console.log('Loading movies from TMDB...');
 
   try {
-    const [movies, series] = await Promise.all([
+    // Load latest movies FIRST so they appear immediately
+    const latest = await fetchLatestMovies();
+    console.log(`✅ Latest movies loaded: ${latest.length}`);
+
+    // Start showing content right away
+    MOVIES      = latest;
+    ALL_CONTENT = [...latest];
+    HERO_ITEMS  = latest.filter(m => m.tags.includes('Trending')).slice(0, 5);
+    document.dispatchEvent(new Event('dataReady'));
+
+    // Then load full historical data in background
+    const [allMovies, series] = await Promise.all([
       fetchAllMovies(),
       fetchSeries()
     ]);
 
-    MOVIES      = movies;
+    // Merge — avoid duplicates by ID
+    const existingIds = new Set(latest.map(m => m.id));
+    const historical  = allMovies.filter(m => !existingIds.has(m.id));
+
+    MOVIES      = [...latest, ...historical];
     SERIES      = series;
-    ALL_CONTENT = [...movies, ...series];
-    HERO_ITEMS  = movies
-      .filter(m => m.tags.includes('Trending'))
-      .slice(0, 5);
+    ALL_CONTENT = [...MOVIES, ...series];
+    HERO_ITEMS  = latest.filter(m => m.tags.includes('Trending')).slice(0, 5);
 
-    console.log(`✅ Loaded: ${movies.length} movies, ${series.length} series`);
+    console.log(`✅ Total loaded: ${MOVIES.length} movies, ${series.length} series`);
 
-    // Tell main.js data is ready
+    // Refresh the UI with full data
     document.dispatchEvent(new Event('dataReady'));
+
+    // Hide loader
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
 
   } catch(e) {
     console.error('Failed to load data:', e);
