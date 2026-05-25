@@ -2,22 +2,22 @@
 // Replace poster URLs with real TMDB image URLs in production
 // Format: https://image.tmdb.org/t/p/w500{poster_path}
 
-// Make API key available globally for search
-window.TMDB_KEY = API_KEY;
 
- // CineStream — Live Movie Data from TMDB API
- // CineStream — Live Movie Data from TMDB API
+// CineStream — Live Movie Data from TMDB API
 const API_KEY = 'c3253a09433a2690c968a64a5788c6d4';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_URL  = 'https://image.tmdb.org/t/p/w500';
 const BACK_URL = 'https://image.tmdb.org/t/p/w1280';
 
-let MOVIES = [];
-let SERIES = [];
-let ALL_CONTENT = [];
-let HERO_ITEMS = [];
+// Make API key available globally for live search
+window.TMDB_KEY = API_KEY;
 
-// Fetch newest releases separately
+let MOVIES      = [];
+let SERIES      = [];
+let ALL_CONTENT = [];
+let HERO_ITEMS  = [];
+
+// ── 1. Fetch newest/upcoming releases first ──────────────
 async function fetchLatestMovies() {
   const latestMovies = [];
   const endpoints = [
@@ -25,7 +25,6 @@ async function fetchLatestMovies() {
     `${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=2`,
     `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=1`,
     `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=2`,
-    // Search specifically for 2026 movies
     `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&page=1`,
     `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=release_date.desc&page=1`,
   ];
@@ -57,7 +56,7 @@ async function fetchLatestMovies() {
   return latestMovies;
 }
 
-// Fetch movies year by year (1970 to now)
+// ── 2. Fetch movies year by year (1970 to now) ───────────
 async function fetchAllMovies() {
   const currentYear = new Date().getFullYear();
   const years = [];
@@ -76,7 +75,7 @@ async function fetchAllMovies() {
     if (msg) msg.textContent = `Loading ${year} movies... ${pct}%`;
 
     try {
-      const res = await fetch(
+      const res  = await fetch(
         `${BASE_URL}/discover/movie?api_key=${API_KEY}` +
         `&primary_release_year=${year}` +
         `&sort_by=popularity.desc` +
@@ -98,7 +97,7 @@ async function fetchAllMovies() {
           desc:     m.overview,
           poster:   IMG_URL + m.poster_path,
           backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
-          tags:     m.popularity > 100 ? ['HD','Trending'] : ['HD'],
+          tags:     m.popularity > 100 ? ['HD', 'Trending'] : ['HD'],
         });
       });
 
@@ -106,22 +105,15 @@ async function fetchAllMovies() {
       console.warn('Failed year:', year, e);
     }
 
-    // Small delay to respect API rate limits
     await new Promise(r => setTimeout(r, 250));
   }
-
-  // Hide loader when done
-  const loader = document.getElementById('loader');
-  if (loader) loader.style.display = 'none';
 
   return allMovies;
 }
 
-// Fetch popular TV series
+// ── 3. Fetch popular TV series ────────────────────────────
 async function fetchSeries() {
-  const res = await fetch(
-    `${BASE_URL}/tv/popular?api_key=${API_KEY}&page=1`
-  );
+  const res  = await fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&page=1`);
   const data = await res.json();
   return data.results
     .filter(s => s.poster_path)
@@ -136,12 +128,12 @@ async function fetchSeries() {
       desc:     s.overview,
       poster:   IMG_URL + s.poster_path,
       backdrop: s.backdrop_path ? BACK_URL + s.backdrop_path : IMG_URL + s.poster_path,
-      tags:     ['HD','Series'],
+      tags:     ['HD', 'Series'],
       seasons:  s.number_of_seasons || 1,
     }));
 }
 
-// TMDB genre ID → name
+// ── 4. Genre ID → name ────────────────────────────────────
 function getGenreName(id) {
   const genres = {
     28:'action', 12:'action', 16:'animation', 35:'comedy',
@@ -153,7 +145,7 @@ function getGenreName(id) {
   return genres[id] || 'drama';
 }
 
-// Boot — load everything
+// ── 5. Boot ───────────────────────────────────────────────
 async function initData() {
   console.log('Loading movies from TMDB...');
 
