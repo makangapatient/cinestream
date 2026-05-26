@@ -1,91 +1,33 @@
-// CineStream — Main Application
-
-(function() {
+// CineStream — Main Application (Fixed)
+(function () {
   'use strict';
 
-  /* ---- State ---- */
-  const state = {
-    currentHero: 0,
-    heroTimer: null,
-    watchlist: JSON.parse(localStorage.getItem('cs_watchlist') || '[]'),
-    currentGenre: 'all',
-    currentModal: null,
-  };
-
-  /* ---- DOM ---- */
+  /* ── DOM helpers ───────────────────────────────────────── */
   const $ = id => document.getElementById(id);
   const $$ = sel => document.querySelectorAll(sel);
 
-  /* ====================================================
-     HERO SLIDER
-  ==================================================== */
-  function updateHero(idx) {
-    const item = HERO_ITEMS[idx];
-    if (!item) return;
-
-    $('heroBg').style.backgroundImage = `url('${item.backdrop}')`;
-    $('heroTitle').textContent = item.title;
-    $('heroDesc').textContent = item.desc;
-    $('heroRating').textContent = `⭐ ${item.rating}`;
-    $('heroYear').textContent = item.year;
-    $('heroDuration').textContent = item.duration;
-    $('heroGenre').textContent = item.genre.charAt(0).toUpperCase() + item.genre.slice(1);
-
-    $$('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
-
-    $('heroWatchBtn').onclick = () => openPlayer(item);
-    $('heroInfoBtn').onclick = () => openModal(item);
-  }
-
-  function startHeroTimer() {
-    clearInterval(state.heroTimer);
-    state.heroTimer = setInterval(() => {
-      state.currentHero = (state.currentHero + 1) % HERO_ITEMS.length;
-      updateHero(state.currentHero);
-    }, 6000);
-  }
-
-  $$('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      state.currentHero = parseInt(dot.dataset.idx);
-      updateHero(state.currentHero);
-      startHeroTimer();
-    });
-  });
-
-  updateHero(0);
-  startHeroTimer();
+  /* ── State ─────────────────────────────────────────────── */
+  const ITEMS_PER_PAGE = 24;
+  let currentFiltered  = [];
+  let currentPage      = 1;
+  let currentHero      = 0;
+  let heroTimer        = null;
+  let watchlist        = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+  let dataLoaded       = false;
 
   /* ====================================================
-     NAVBAR SCROLL
-  ==================================================== */
-  window.addEventListener('scroll', () => {
-    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
-  }, { passive: true });
-
-  /* ====================================================
-     MOBILE MENU
-  ==================================================== */
-  $('menuBtn').addEventListener('click', () => {
-    $('mobileMenu').classList.toggle('open');
-  });
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('#menuBtn') && !e.target.closest('#mobileMenu')) {
-      $('mobileMenu').classList.remove('open');
-    }
-  });
-
-  /* ====================================================
-     MOVIE CARD BUILDER
+     CARD BUILDER
   ==================================================== */
   function buildCard(item) {
     const card = document.createElement('div');
     card.className = 'movie-card';
     card.dataset.id = item.id;
 
-    const mainBadge = item.tags?.includes('New') ? 'NEW' : (item.tags?.includes('Trending') ? 'HOT' : '');
-    const badgeClass = item.tags?.includes('New') ? 'new-badge' : '';
+    const badge = item.tags?.includes('New')
+      ? '<div class="card-badge new-badge">NEW</div>'
+      : item.tags?.includes('Trending')
+        ? '<div class="card-badge" style="background:#f59e0b">HOT</div>'
+        : '<div class="card-badge hd">HD</div>';
 
     card.innerHTML = `
       <img class="card-poster" src="${item.poster}" alt="${item.title}" loading="lazy"
@@ -103,369 +45,338 @@
       <div class="card-play">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
       </div>
-      ${mainBadge ? `<div class="card-badge hd ${badgeClass}">${mainBadge}</div>` : '<div class="card-badge hd">HD</div>'}
-    `;
+      ${badge}`;
 
     card.addEventListener('click', () => openModal(item));
     return card;
   }
 
-  function renderGrid(gridId, items, limit = 10) {
-    const grid = $(gridId);
-    if (!grid) return;
-    grid.innerHTML = '';
-    items.slice(0, limit).forEach(item => grid.appendChild(buildCard(item)));
-  }
-
   /* ====================================================
-     RENDER SECTIONS
+     PAGINATION — core render
   ==================================================== */
-  function renderAll() {
-    const trending = ALL_CONTENT.filter(m => m.tags?.includes('Trending'));
-    const latest   = MOVIES.filter(m => m.year >= 2024).slice(0, 10);
-    const topRated = [...ALL_CONTENT].sort((a, b) => b.rating - a.rating).slice(0, 10);
-    const series   = SERIES.slice(0, 8);
+  function renderPage(page) {
+    currentPage   = page;
+    const start   = (page - 1) * ITEMS_PER_PAGE;
+    const slice   = currentFiltered.slice(start, start + ITEMS_PER_PAGE);
+    const grid    = $('latestGrid');
 
-    renderGrid('trendingGrid', trending, 8);
-    renderGrid('latestGrid', latest, 10);
-    renderGrid('topRatedGrid', topRated, 10);
-    renderGrid('seriesGrid', series, 8);
+    // Completely clear the grid
+    grid.innerHTML = '';
+
+    // Add only this page's cards
+    slice.forEach(item => grid.appendChild(buildCard(item)));
+
+    // Rebuild pagination
+    buildPagination();
+
+    // Scroll to grid
+    $('latestSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Wait for TMDB data before rendering
- document.addEventListener('dataReady', () => {
-  renderAll();
-  updateHero(0);
-  startHeroTimer();
-});
+  function applyFilter(items, title) {
+    currentFiltered = items;
+    currentPage     = 1;
 
-/* ====================================================
-   FILTER SYSTEM — Tabs + Genre + Year + A-Z
-==================================================== */
+    const titleEl = document.querySelector('#latestSection .section-title');
+    if (titleEl) titleEl.textContent = title;
 
-const ITEMS_PER_PAGE = 24;
-let currentFiltered  = [];
-let currentPage      = 1;
+    renderPage(1);
+  }
 
-// ── Core render functions ─────────────────────────────────
-function applyFilter(filtered, title) {
-  currentFiltered = filtered;
-  currentPage     = 1;
+  function buildPagination() {
+    // Remove old
+    const old = $('paginationWrap');
+    if (old) old.remove();
 
-  // Update title
-  const titleEl = document.querySelector('#latestSection .section-title');
-  if (titleEl) titleEl.textContent = title;
+    const total = Math.ceil(currentFiltered.length / ITEMS_PER_PAGE);
+    if (total <= 1) return; // hide if not needed
 
-  renderPage(1);
+    const wrap = document.createElement('div');
+    wrap.id = 'paginationWrap';
 
-  // Scroll to section
-  const section = $('latestSection');
-  if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+    let html = '<div class="pagination">';
 
-function renderPage(page) {
-  currentPage = page;
-  const start = (page - 1) * ITEMS_PER_PAGE;
-  const end   = start + ITEMS_PER_PAGE;
-  const slice = currentFiltered.slice(start, end);
-  const grid  = $('latestGrid');
+    // Prev
+    html += `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}"
+      data-page="${currentPage - 1}">‹ Prev</button>`;
 
-  // CLEAR grid completely before adding new cards
-  while (grid.firstChild) grid.removeChild(grid.firstChild);
-
-  // Add cards for this page only
-  slice.forEach(item => grid.appendChild(buildCard(item)));
-
-  // Render pagination below grid
-  renderPagination();
-}
-
-function renderPagination() {
-  const totalPages = Math.ceil(currentFiltered.length / ITEMS_PER_PAGE);
-
-  // Remove old pagination
-  const old = document.getElementById('paginationWrap');
-  if (old) old.remove();
-
-  // Hide pagination if only 1 page or no content
-  if (totalPages <= 1) return;
-
-  const wrap = document.createElement('div');
-  wrap.id = 'paginationWrap';
-  wrap.innerHTML = buildPaginationHTML(currentPage, totalPages);
-
-  $('latestSection').querySelector('.container').appendChild(wrap);
-
-  // Bind buttons
-  wrap.querySelectorAll('.page-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.classList.contains('disabled')) return;
-      const p = parseInt(btn.dataset.page);
-      if (!isNaN(p) && p !== currentPage) {
-        renderPage(p);
-        // Scroll to top of grid
-        $('latestSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Page numbers
+    const pages = getPageNumbers(currentPage, total);
+    pages.forEach(p => {
+      if (p === '...') {
+        html += `<span class="page-ellipsis">…</span>`;
+      } else {
+        html += `<button class="page-btn ${p === currentPage ? 'active' : ''}"
+          data-page="${p}">${p}</button>`;
       }
     });
-  });
-}
 
-function buildPaginationHTML(current, total) {
-  let html = '<div class="pagination">';
+    // Next
+    html += `<button class="page-btn ${currentPage === total ? 'disabled' : ''}"
+      data-page="${currentPage + 1}">Next ›</button>`;
 
-  // Prev button
-  html += `<button class="page-btn page-prev ${current === 1 ? 'disabled' : ''}"
-    data-page="${current - 1}">‹ Prev</button>`;
+    html += `<span class="page-info">Page ${currentPage} of ${total} · ${currentFiltered.length} titles</span>`;
+    html += '</div>';
 
-  // Smart page window
-  const pages = [];
-  if (total <= 7) {
-    for (let i = 1; i <= total; i++) pages.push(i);
-  } else {
-    pages.push(1);
+    wrap.innerHTML = html;
+
+    // Insert after the grid inside latestSection container
+    const container = $('latestSection').querySelector('.container');
+    container.appendChild(wrap);
+
+    // Bind clicks
+    wrap.querySelectorAll('.page-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
+        const p = parseInt(btn.dataset.page);
+        if (!isNaN(p)) renderPage(p);
+      });
+    });
+  }
+
+  function getPageNumbers(current, total) {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages = [1];
     if (current > 3) pages.push('...');
     for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
       pages.push(i);
     }
     if (current < total - 2) pages.push('...');
     pages.push(total);
+    return pages;
   }
 
-  pages.forEach(p => {
-    if (p === '...') {
-      html += `<span class="page-ellipsis">…</span>`;
-    } else {
-      html += `<button class="page-btn ${p === current ? 'active' : ''}"
-        data-page="${p}">${p}</button>`;
+  /* ====================================================
+     FILTER SYSTEM
+  ==================================================== */
+  function buildYearButtons() {
+    const panel = $('panel-year');
+    if (!panel) return;
+
+    const now  = new Date().getFullYear();
+    let   html = `<button class="year-btn active" data-year="all">All</button>`;
+    for (let y = now + 1; y >= 1970; y--) {
+      html += `<button class="year-btn" data-year="${y}">${y}</button>`;
     }
-  });
+    panel.innerHTML = html;
 
-  // Next button
-  html += `<button class="page-btn page-next ${current === total ? 'disabled' : ''}"
-    data-page="${current + 1}">Next ›</button>`;
-
-  // Info
-  html += `<span class="page-info">
-    Page ${current} of ${total} &nbsp;·&nbsp; ${currentFiltered.length} titles
-  </span>`;
-
-  html += '</div>';
-  return html;
-}
-
-// ── Build year buttons ────────────────────────────────────
-function buildYearButtons() {
-  const panel = document.getElementById('panel-year');
-  if (!panel) return;
-
-  const currentYear = new Date().getFullYear();
-  let html = `<button class="year-btn active" data-year="all">All</button>`;
-  for (let y = currentYear + 1; y >= 1970; y--) {
-    html += `<button class="year-btn" data-year="${y}">${y}</button>`;
+    panel.querySelectorAll('.year-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        panel.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const yr = btn.dataset.year;
+        const filtered = yr === 'all'
+          ? [...ALL_CONTENT]
+          : ALL_CONTENT.filter(m => String(m.year) === String(yr));
+        applyFilter(filtered, yr === 'all' ? '📅 All Years' : `📅 ${yr} — ${filtered.length} titles`);
+      });
+    });
   }
-  panel.innerHTML = html;
 
-  panel.querySelectorAll('.year-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      panel.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const year = btn.dataset.year;
+  function initFilterTabs() {
+    $$('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        $$('.filter-panel').forEach(p => p.style.display = 'none');
 
-      const filtered = year === 'all'
-        ? [...ALL_CONTENT]
-        : ALL_CONTENT.filter(m => parseInt(m.year) === parseInt(year));
+        const name = tab.dataset.tab;
+        if (name === 'popular') {
+          applyFilter([...ALL_CONTENT].sort((a, b) => b.rating - a.rating), '🔥 Most Popular');
+        } else if (name === 'recent') {
+          applyFilter([...ALL_CONTENT].sort((a, b) => b.year - a.year), '🆕 Most Recent');
+        } else if (name === 'genre') {
+          $('panel-genre').style.display = 'flex';
+        } else if (name === 'year') {
+          $('panel-year').style.display = 'flex';
+        } else if (name === 'az') {
+          $('panel-az').style.display = 'flex';
+        }
+      });
+    });
 
-      const count = filtered.length;
-      const label = year === 'all'
-        ? `📅 All Years`
-        : `📅 ${year} — ${count} title${count !== 1 ? 's' : ''}`;
+    $$('.genre-btn[data-genre]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('.genre-btn[data-genre]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const g = btn.dataset.genre;
+        const f = g === 'all' ? [...ALL_CONTENT] : ALL_CONTENT.filter(m => m.genre === g);
+        applyFilter(f, g === 'all' ? '🎬 All' : `🎬 ${g.charAt(0).toUpperCase() + g.slice(1)}`);
+      });
+    });
 
-      applyFilter(filtered, label);
+    $$('.genre-btn[data-letter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('.genre-btn[data-letter]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const l = btn.dataset.letter;
+        const f = l === 'all' ? [...ALL_CONTENT] : ALL_CONTENT.filter(m => m.title.toUpperCase().startsWith(l));
+        applyFilter(f, l === 'all' ? '🔤 All Titles' : `🔤 "${l}"`);
+      });
+    });
+  }
+
+  /* ====================================================
+     HERO SLIDER
+  ==================================================== */
+  function updateHero(idx) {
+    const items = HERO_ITEMS.length ? HERO_ITEMS : ALL_CONTENT.slice(0, 5);
+    const item  = items[idx];
+    if (!item) return;
+
+    if ($('heroBg'))      $('heroBg').style.backgroundImage = `url('${item.backdrop}')`;
+    if ($('heroTitle'))   $('heroTitle').textContent   = item.title;
+    if ($('heroDesc'))    $('heroDesc').textContent    = item.desc;
+    if ($('heroRating'))  $('heroRating').textContent  = `⭐ ${item.rating}`;
+    if ($('heroYear'))    $('heroYear').textContent    = item.year;
+    if ($('heroDuration'))$('heroDuration').textContent= item.duration;
+    if ($('heroGenre'))   $('heroGenre').textContent   = item.genre?.charAt(0).toUpperCase() + item.genre?.slice(1);
+
+    $$('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+
+    if ($('heroWatchBtn')) $('heroWatchBtn').onclick = () => openPlayer(item);
+    if ($('heroInfoBtn'))  $('heroInfoBtn').onclick  = () => openModal(item);
+  }
+
+  function startHeroTimer() {
+    clearInterval(heroTimer);
+    heroTimer = setInterval(() => {
+      const items = HERO_ITEMS.length ? HERO_ITEMS : ALL_CONTENT.slice(0, 5);
+      currentHero = (currentHero + 1) % items.length;
+      updateHero(currentHero);
+    }, 6000);
+  }
+
+  $$('.hero-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      currentHero = parseInt(dot.dataset.idx);
+      updateHero(currentHero);
+      startHeroTimer();
     });
   });
-}
 
-// ── Filter tabs ───────────────────────────────────────────
-$$('.filter-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    $$('.filter-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const tabName = tab.dataset.tab;
+  /* ====================================================
+     NAVBAR
+  ==================================================== */
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar')?.classList.toggle('scrolled', window.scrollY > 60);
+  }, { passive: true });
 
-    // Hide all sub-panels
-    document.querySelectorAll('.filter-panel').forEach(p => p.style.display = 'none');
+  $('menuBtn')?.addEventListener('click', () => $('mobileMenu')?.classList.toggle('open'));
 
-    if (tabName === 'popular') {
-      const sorted = [...ALL_CONTENT].sort((a, b) => b.rating - a.rating);
-      applyFilter(sorted, '🔥 Most Popular');
-    }
-    else if (tabName === 'recent') {
-      const sorted = [...ALL_CONTENT].sort((a, b) => b.year - a.year || b.rating - a.rating);
-      applyFilter(sorted, '🆕 Most Recent');
-    }
-    else if (tabName === 'genre') {
-      document.getElementById('panel-genre').style.display = 'flex';
-    }
-    else if (tabName === 'year') {
-      document.getElementById('panel-year').style.display = 'flex';
-    }
-    else if (tabName === 'az') {
-      document.getElementById('panel-az').style.display = 'flex';
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#menuBtn') && !e.target.closest('#mobileMenu')) {
+      $('mobileMenu')?.classList.remove('open');
     }
   });
-});
-
-// ── Genre buttons ─────────────────────────────────────────
-$$('.genre-btn[data-genre]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.genre-btn[data-genre]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const genre = btn.dataset.genre;
-    const filtered = genre === 'all'
-      ? [...ALL_CONTENT]
-      : ALL_CONTENT.filter(m => m.genre === genre);
-    const label = genre === 'all'
-      ? '🎬 All Movies & Series'
-      : `🎬 ${genre.charAt(0).toUpperCase() + genre.slice(1)}`;
-    applyFilter(filtered, label);
-  });
-});
-
-// ── A-Z buttons ───────────────────────────────────────────
-$$('.genre-btn[data-letter]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.genre-btn[data-letter]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const letter = btn.dataset.letter;
-    const filtered = letter === 'all'
-      ? [...ALL_CONTENT]
-      : ALL_CONTENT.filter(m => m.title.toUpperCase().startsWith(letter));
-    const label = letter === 'all' ? '🔤 All Titles' : `🔤 "${letter}"`;
-    applyFilter(filtered, label);
-  });
-});
-
-// ── Init on data ready ────────────────────────────────────
-function initFilters() {
-  buildYearButtons();
-  // Default view: most popular
-  const sorted = [...ALL_CONTENT].sort((a, b) => b.rating - a.rating);
-  applyFilter(sorted, '🔥 Most Popular');
-}
-
-document.addEventListener('dataReady', initFilters);
-if (ALL_CONTENT.length) initFilters();
 
   /* ====================================================
      SEARCH
   ==================================================== */
-  const searchInput  = $('searchInput');
+  const searchInput    = $('searchInput');
   const searchDropdown = $('searchDropdown');
 
-searchInput.addEventListener('input', async () => {
-  const q = searchInput.value.trim().toLowerCase();
-  if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
+  if (searchInput) {
+    searchInput.addEventListener('input', async () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if (q.length < 2) { searchDropdown?.classList.remove('open'); return; }
 
-  // Search local data first
-  let results = ALL_CONTENT.filter(m =>
-    m.title.toLowerCase().includes(q) ||
-    m.genre.toLowerCase().includes(q) ||
-    (m.cast && m.cast.toLowerCase().includes(q))
-  ).slice(0, 5);
+      let results = ALL_CONTENT.filter(m =>
+        m.title.toLowerCase().includes(q) ||
+        m.genre.toLowerCase().includes(q)
+      ).slice(0, 6);
 
-  // Also search TMDB API for anything not in local data
-  if (q.length >= 3) {
-    const apiResults = await searchTMDB(q);
-    const localIds   = new Set(results.map(m => m.id));
-    const newResults = apiResults.filter(m => !localIds.has(m.id)).slice(0, 4);
-    results = [...results, ...newResults].slice(0, 8);
-  }
-
-  searchDropdown.innerHTML = results.length
-    ? results.map(m => `
-        <div class="search-result-item" data-id="${m.id}" data-source="${ALL_CONTENT.find(x=>x.id===m.id)?'local':'api'}">
-          <img src="${m.poster}" alt="${m.title}" onerror="this.style.opacity=0">
-          <div class="search-result-info">
-            <strong>${m.title}</strong>
-            <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
-          </div>
-        </div>`).join('')
-    : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
-
-  searchDropdown.classList.add('open');
-
-  searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
-    el.addEventListener('click', () => {
-      // Check local first, otherwise use API result
-      let item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-      if (!item) {
-        item = results.find(m => m.id === parseInt(el.dataset.id));
-        if (item) ALL_CONTENT.push(item); // Add to local data
+      // Live TMDB search for missing titles
+      if (q.length >= 3 && window.TMDB_KEY) {
+        try {
+          const res  = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${window.TMDB_KEY}&query=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          const ids  = new Set(results.map(m => m.id));
+          data.results.filter(m => m.poster_path && !ids.has(m.id)).slice(0, 4).forEach(m => {
+            results.push({
+              id: m.id, title: m.title,
+              year: m.release_date ? new Date(m.release_date).getFullYear() : '—',
+              rating: Math.round(m.vote_average * 10) / 10,
+              genre: 'drama', type: 'movie', desc: m.overview,
+              poster:   `https://image.tmdb.org/t/p/w500${m.poster_path}`,
+              backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : `https://image.tmdb.org/t/p/w500${m.poster_path}`,
+              tags: ['HD'], duration: '—',
+            });
+          });
+        } catch(e) {}
       }
-      if (item) {
-        openModal(item);
-        searchDropdown.classList.remove('open');
-        searchInput.value = '';
-      }
+
+      if (!searchDropdown) return;
+      searchDropdown.innerHTML = results.length
+        ? results.slice(0, 8).map(m => `
+            <div class="search-result-item" data-id="${m.id}">
+              <img src="${m.poster}" alt="${m.title}" onerror="this.style.opacity=0">
+              <div class="search-result-info">
+                <strong>${m.title}</strong>
+                <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
+              </div>
+            </div>`).join('')
+        : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
+
+      searchDropdown.classList.add('open');
+
+      searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+        el.addEventListener('click', () => {
+          let item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
+          if (!item) item = results.find(m => m.id === parseInt(el.dataset.id));
+          if (item) {
+            if (!ALL_CONTENT.find(m => m.id === item.id)) ALL_CONTENT.push(item);
+            openModal(item);
+          }
+          searchDropdown.classList.remove('open');
+          searchInput.value = '';
+        });
+      });
     });
-  });
-});
 
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
-  });
-
-  $('searchBtn').addEventListener('click', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (!q) return;
-    const filtered = ALL_CONTENT.filter(m => m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q));
-    renderGrid('latestGrid', filtered.length ? filtered : ALL_CONTENT, 12);
-    searchDropdown.classList.remove('open');
-    document.getElementById('latestSection').scrollIntoView({ behavior: 'smooth' });
-  });
-
-  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.search-wrap')) searchDropdown?.classList.remove('open');
+    });
+  }
 
   /* ====================================================
      MODAL
   ==================================================== */
   function openModal(item) {
-    state.currentModal = item;
     const overlay = $('modalOverlay');
+    if (!overlay) return;
 
-    $('modalBackdrop').src = item.backdrop || item.poster;
+    $('modalBackdrop').src    = item.backdrop || item.poster;
     $('modalTitle').textContent = item.title;
-    $('modalDesc').textContent = item.desc;
+    $('modalDesc').textContent  = item.desc;
 
     $('modalBadges').innerHTML = `
       <span class="badge badge-hd">HD</span>
       <span class="badge badge-free">FREE</span>
-      ${item.type === 'series' ? '<span class="badge" style="background:rgba(255,255,255,.15)">SERIES</span>' : ''}
-    `;
+      ${item.type === 'series' ? '<span class="badge" style="background:rgba(255,255,255,.15)">SERIES</span>' : ''}`;
 
-    const inWatchlist = state.watchlist.includes(item.id);
-    const wBtn = $('modalWatchlistBtn');
-    wBtn.textContent = inWatchlist ? '✓ In Watchlist' : '+ Watchlist';
-    wBtn.className = 'btn-watchlist' + (inWatchlist ? ' added' : '');
+    const inWl  = watchlist.includes(item.id);
+    const wBtn  = $('modalWatchlistBtn');
+    wBtn.textContent = inWl ? '✓ In Watchlist' : '+ Watchlist';
+    wBtn.className   = 'btn-watchlist' + (inWl ? ' added' : '');
 
     $('modalMeta').innerHTML = `
       <span style="color:#f5c518;font-weight:600">⭐ ${item.rating}</span>
       <span>${item.year}</span>
       <span>${item.duration}</span>
       <span style="text-transform:capitalize">${item.genre}</span>
-      ${item.seasons ? `<span>${item.seasons} Season${item.seasons > 1 ? 's' : ''}</span>` : ''}
-    `;
+      ${item.seasons ? `<span>${item.seasons} Season${item.seasons > 1 ? 's' : ''}</span>` : ''}`;
 
     $('modalDetails').innerHTML = `
       ${item.director ? `<div class="detail-row"><span class="detail-label">Director</span><span class="detail-val">${item.director}</span></div>` : ''}
-      ${item.cast ? `<div class="detail-row"><span class="detail-label">Cast</span><span class="detail-val">${item.cast}</span></div>` : ''}
+      ${item.cast     ? `<div class="detail-row"><span class="detail-label">Cast</span><span class="detail-val">${item.cast}</span></div>` : ''}
       <div class="detail-row"><span class="detail-label">Genre</span><span class="detail-val" style="text-transform:capitalize">${item.genre}</span></div>
       <div class="detail-row"><span class="detail-label">Year</span><span class="detail-val">${item.year}</span></div>
       <div class="detail-row"><span class="detail-label">Rating</span><span class="detail-val">⭐ ${item.rating} / 10</span></div>
-      <div class="detail-row"><span class="detail-label">Quality</span><span class="detail-val" style="color:var(--accent)">HD 1080p</span></div>
-    `;
+      <div class="detail-row"><span class="detail-label">Quality</span><span class="detail-val" style="color:var(--accent)">HD 1080p</span></div>`;
 
-    // Related
     const related = ALL_CONTENT
       .filter(m => m.genre === item.genre && m.id !== item.id)
       .sort(() => Math.random() - 0.5)
@@ -484,169 +395,125 @@ searchInput.addEventListener('input', async () => {
       });
     });
 
-    $('modalWatchBtn').onclick = () => { closeModal(); openPlayer(item); };
-    $('modalTrailerBtn').onclick = () => {
-      showToast('🎬 Trailer feature — connect YouTube API');
+    $('modalWatchBtn').onclick   = () => { closeModal(); openPlayer(item); };
+    $('modalTrailerBtn').onclick = () => showToast('🎬 Trailer — connect YouTube API');
+    wBtn.onclick = () => {
+      const idx = watchlist.indexOf(item.id);
+      if (idx === -1) {
+        watchlist.push(item.id);
+        wBtn.textContent = '✓ In Watchlist';
+        wBtn.classList.add('added');
+        showToast('✅ Added to Watchlist');
+      } else {
+        watchlist.splice(idx, 1);
+        wBtn.textContent = '+ Watchlist';
+        wBtn.classList.remove('added');
+        showToast('Removed from Watchlist');
+      }
+      localStorage.setItem('cs_watchlist', JSON.stringify(watchlist));
     };
-    wBtn.onclick = () => toggleWatchlist(item.id, wBtn);
 
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 
   function closeModal() {
-    $('modalOverlay').classList.remove('open');
+    $('modalOverlay')?.classList.remove('open');
     document.body.style.overflow = '';
   }
 
-  $('modalClose').addEventListener('click', closeModal);
-  $('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOverlay')) closeModal(); });
+  $('modalClose')?.addEventListener('click', closeModal);
+  $('modalOverlay')?.addEventListener('click', e => { if (e.target === $('modalOverlay')) closeModal(); });
 
   /* ====================================================
-     VIDEO PLAYER
+     PLAYER
   ==================================================== */
-let currentServers = [];
-let uiHideTimer;
+  let currentServers = [];
+  let uiHideTimer;
 
-function openPlayer(item) {
-  $('playerTitle').textContent = item.title;
-  const screen = $('playerScreen');
+  function openPlayer(item) {
+    if ($('playerTitle')) $('playerTitle').textContent = item.title;
+    const screen = $('playerScreen');
 
-  currentServers = item.type === 'series'
-    ? [
-        `https://vidsrc.to/embed/tv/${item.id}/1/1`,
-        `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
-        `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
-      ]
-    : [
-        `https://vidsrc.to/embed/movie/${item.id}`,
-        `https://www.2embed.cc/embed/${item.id}`,
-        `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
-      ];
+    currentServers = item.type === 'series'
+      ? [
+          `https://vidsrc.to/embed/tv/${item.id}/1/1`,
+          `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
+          `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
+        ]
+      : [
+          `https://vidsrc.to/embed/movie/${item.id}`,
+          `https://www.2embed.cc/embed/${item.id}`,
+          `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
+        ];
 
-  loadServer(0, screen);
+    loadServer(0, screen);
 
-  // Server buttons
-  $$('.source-btn').forEach(btn => {
-    btn.classList.remove('active');
-    btn.addEventListener('click', () => {
-      $$('.source-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      loadServer(parseInt(btn.dataset.server), screen);
+    $$('.source-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', i === 0);
+      btn.onclick = () => {
+        $$('.source-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadServer(i, screen);
+      };
     });
+
+    if ($('playerFullscreen')) $('playerFullscreen').onclick = toggleFullscreen;
+    if ($('playerPip'))        $('playerPip').onclick = () => showToast('📺 Use browser PiP button');
+
+    const overlay = $('playerOverlay');
+    overlay.addEventListener('mousemove', resetUiTimer);
+    overlay.addEventListener('touchstart', resetUiTimer);
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    resetUiTimer();
+  }
+
+  function loadServer(index, screen) {
+    const url = currentServers[index] || currentServers[0];
+    screen.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
+  }
+
+  function resetUiTimer() {
+    $('playerOverlay')?.classList.remove('hide-ui');
+    clearTimeout(uiHideTimer);
+    uiHideTimer = setTimeout(() => $('playerOverlay')?.classList.add('hide-ui'), 3500);
+  }
+
+  function toggleFullscreen() {
+    const el = $('playerOverlay');
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
+      if ($('playerFullscreen')) $('playerFullscreen').textContent = '⊠ Exit Fullscreen';
+    } else {
+      document.exitFullscreen();
+      if ($('playerFullscreen')) $('playerFullscreen').textContent = '⛶ Fullscreen';
+    }
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && $('playerFullscreen')) {
+      $('playerFullscreen').textContent = '⛶ Fullscreen';
+    }
   });
 
-  // Fullscreen button
-  $('playerFullscreen').onclick = () => toggleFullscreen();
-
-  // Picture in Picture
-  $('playerPip').onclick = () => {
-    const iframe = screen.querySelector('iframe');
-    if (iframe) {
-      iframe.contentWindow.postMessage('pip', '*');
-      showToast('📺 Picture-in-Picture — use browser PiP button in address bar');
-    }
-  };
-
-  // Auto-hide UI on mouse stop
-  const overlay = $('playerOverlay');
-  overlay.addEventListener('mousemove', resetUiTimer);
-  overlay.addEventListener('touchstart', resetUiTimer);
-
-  overlay.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  resetUiTimer();
-}
-
-function loadServer(index, screen) {
-  const url = currentServers[index] || currentServers[0];
-  screen.innerHTML = `
-    <iframe
-      src="${url}"
-      allowfullscreen
-      allow="autoplay; fullscreen; picture-in-picture"
-      style="width:100%;height:100%;border:none">
-    </iframe>`;
-}
-
-function resetUiTimer() {
-  const overlay = $('playerOverlay');
-  overlay.classList.remove('hide-ui');
-  clearTimeout(uiHideTimer);
-  uiHideTimer = setTimeout(() => {
-    overlay.classList.add('hide-ui');
-  }, 3500);
-}
-
-function toggleFullscreen() {
-  const el = $('playerOverlay');
-  if (!document.fullscreenElement) {
-    el.requestFullscreen().catch(() => {
-      showToast('Fullscreen not supported in this browser');
-    });
-    $('playerFullscreen').textContent = '⊠ Exit Fullscreen';
-  } else {
-    document.exitFullscreen();
-    $('playerFullscreen').textContent = '⛶ Fullscreen';
+  function closePlayer() {
+    $('playerOverlay')?.classList.remove('open', 'hide-ui');
+    if ($('playerScreen')) $('playerScreen').innerHTML = '';
+    clearTimeout(uiHideTimer);
+    if (document.fullscreenElement) document.exitFullscreen();
+    document.body.style.overflow = '';
   }
-}
 
-// Fullscreen change event
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
-    $('playerFullscreen').textContent = '⛶ Fullscreen';
-  }
-});
+  $('playerClose')?.addEventListener('click', closePlayer);
+  $('playerOverlay')?.addEventListener('click', e => { if (e.target === $('playerOverlay')) closePlayer(); });
 
-function closePlayer() {
-  $('playerOverlay').classList.remove('open', 'hide-ui');
-  $('playerScreen').innerHTML = '';
-  clearTimeout(uiHideTimer);
-  if (document.fullscreenElement) document.exitFullscreen();
-  document.body.style.overflow = '';
-}
-  
-// Breadcrumb back link
-const backLink = $('playerCloseLink');
-if (backLink) {
-  backLink.onclick = (e) => {
+  // Player back link
+  $('playerCloseLink')?.addEventListener('click', e => {
     e.preventDefault();
     closePlayer();
-    // Scroll back to movies section
-    const el = document.getElementById('latestSection');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-}  
-
-$('playerClose').addEventListener('click', closePlayer);
-$('playerOverlay').addEventListener('click', e => {
-  if (e.target === $('playerOverlay')) closePlayer();
-});
-
-// Keyboard: F = fullscreen, Escape = close
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal(); closePlayer(); }
-  if (e.key === 'f' && $('playerOverlay').classList.contains('open')) toggleFullscreen();
-  if (e.key === '/' && !e.target.matches('input')) { e.preventDefault(); searchInput.focus(); }
-});
-  /* ====================================================
-     WATCHLIST
-  ==================================================== */
-  function toggleWatchlist(id, btn) {
-    const idx = state.watchlist.indexOf(id);
-    if (idx === -1) {
-      state.watchlist.push(id);
-      btn.textContent = '✓ In Watchlist';
-      btn.classList.add('added');
-      showToast('✅ Added to Watchlist');
-    } else {
-      state.watchlist.splice(idx, 1);
-      btn.textContent = '+ Watchlist';
-      btn.classList.remove('added');
-      showToast('Removed from Watchlist');
-    }
-    localStorage.setItem('cs_watchlist', JSON.stringify(state.watchlist));
-  }
+    $('latestSection')?.scrollIntoView({ behavior: 'smooth' });
+  });
 
   /* ====================================================
      TOAST
@@ -654,6 +521,7 @@ document.addEventListener('keydown', e => {
   let toastTimer;
   function showToast(msg) {
     const t = $('toast');
+    if (!t) return;
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(toastTimer);
@@ -661,81 +529,81 @@ document.addEventListener('keydown', e => {
   }
 
   /* ====================================================
-     NAV PAGE LINKS
+     KEYBOARD SHORTCUTS
+  ==================================================== */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closePlayer(); }
+    if (e.key === 'f' && $('playerOverlay')?.classList.contains('open')) toggleFullscreen();
+    if (e.key === '/' && !e.target.matches('input,textarea')) {
+      e.preventDefault(); searchInput?.focus();
+    }
+  });
+
+  /* ====================================================
+     NAV LINKS
   ==================================================== */
   document.addEventListener('click', e => {
     const link = e.target.closest('[data-page]');
     if (!link) return;
     e.preventDefault();
-    const page = link.dataset.page;
-    let items = ALL_CONTENT;
-    let title = '🎬 All Content';
-
-    if (page === 'movies')   { items = MOVIES; title = '🎬 All Movies'; }
-    if (page === 'series')   { items = SERIES; title = '📺 All TV Series'; }
-    if (page === 'trending') { items = ALL_CONTENT.filter(m => m.tags?.includes('Trending')); title = '🔥 Trending'; }
-    if (page === 'top250')   { items = [...ALL_CONTENT].sort((a,b) => b.rating - a.rating); title = '⭐ Top Rated'; }
-
-    renderGrid('latestGrid', items, 24);
-    document.getElementById('latestSection').querySelector('.section-title').textContent = title;
-    document.getElementById('trendingSection').style.display = 'none';
-
+    const pg = link.dataset.page;
+    let items = ALL_CONTENT, title = '🎬 All Content';
+    if (pg === 'movies')   { items = MOVIES; title = '🎬 All Movies'; }
+    if (pg === 'series')   { items = SERIES; title = '📺 All TV Series'; }
+    if (pg === 'trending') { items = ALL_CONTENT.filter(m => m.tags?.includes('Trending')); title = '🔥 Trending'; }
+    if (pg === 'top250')   { items = [...ALL_CONTENT].sort((a,b) => b.rating - a.rating); title = '⭐ Top Rated'; }
+    applyFilter(items, title);
     $$('.nav-link').forEach(l => l.classList.remove('active'));
-    link.classList.add('active');
-
-    $('mobileMenu').classList.remove('open');
-    document.getElementById('latestSection').scrollIntoView({ behavior: 'smooth' });
+    link.classList?.add('active');
+    $('mobileMenu')?.classList.remove('open');
   });
 
   /* ====================================================
-     KEYBOARD SHORTCUTS
+     DATA READY — boot everything
   ==================================================== */
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closePlayer(); }
-    if (e.key === '/' && !e.target.matches('input')) { e.preventDefault(); searchInput.focus(); }
+  function onDataReady() {
+    if (dataLoaded) return; // prevent double-init on first dataReady
+    dataLoaded = true;
+
+    // Hero
+    updateHero(0);
+    startHeroTimer();
+
+    // Build year buttons
+    buildYearButtons();
+
+    // Filter tabs
+    initFilterTabs();
+
+    // Default view: show latest movies first
+    const latest = [...ALL_CONTENT].sort((a, b) => b.year - a.year);
+    applyFilter(latest, '🆕 Latest Movies');
+
+    // Hide loader
+    const loader = $('loader');
+    if (loader) loader.style.display = 'none';
+  }
+
+  // Second dataReady (full historical data loaded) — refresh with more data
+  let readyCount = 0;
+  document.addEventListener('dataReady', () => {
+    readyCount++;
+    if (readyCount === 1) {
+      onDataReady();
+    } else {
+      // Rebuild year buttons with full data, keep current filter
+      buildYearButtons();
+      // Re-apply current filter with updated ALL_CONTENT
+      const latest = [...ALL_CONTENT].sort((a, b) => b.year - a.year);
+      applyFilter(latest, '🆕 Latest Movies');
+      const loader = $('loader');
+      if (loader) loader.style.display = 'none';
+    }
   });
 
-  /* ====================================================
-     FOOTER LINKS (genre)
-  ==================================================== */
-  document.querySelectorAll('.footer-links a').forEach(a => {
-    a.addEventListener('click', e => {
-      const genre = a.textContent.toLowerCase().replace(/\s+/g, '-');
-      const genreBtn = document.querySelector(`.genre-btn[data-genre="${genre}"]`);
-      if (genreBtn) { e.preventDefault(); genreBtn.click(); }
-    });
-  });
+  // If data already loaded (static data.js with no async)
+  if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) {
+    onDataReady();
+  }
 
 })();
-
-// Enhanced search — also queries TMDB API directly
-async function searchTMDB(query) {
-  const API_KEY = window.TMDB_KEY || '';
-  if (!API_KEY || query.length < 3) return [];
-
-  try {
-    const res  = await fetch(
-      `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}&page=1`
-    );
-    const data = await res.json();
-    return data.results
-      .filter(m => m.poster_path)
-      .map(m => ({
-        id:       m.id,
-        title:    m.title,
-        year:     m.release_date ? new Date(m.release_date).getFullYear() : '—',
-        rating:   Math.round(m.vote_average * 10) / 10,
-        duration: '—',
-        genre:    getGenreName ? getGenreName(m.genre_ids[0]) : 'drama',
-        type:     'movie',
-        desc:     m.overview,
-        poster:   `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-        backdrop: m.backdrop_path
-          ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}`
-          : `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-        tags:     ['HD'],
-      }));
-  } catch(e) {
-    return [];
-  }
-}
