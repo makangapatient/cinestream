@@ -20,39 +20,67 @@ let HERO_ITEMS  = [];
 // ── 1. Fetch newest/upcoming releases first ──────────────
 async function fetchLatestMovies() {
   const latestMovies = [];
+  const seen = new Set();
+
+  // Fetch multiple pages for 2026 and now_playing
   const endpoints = [
     `${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=1`,
     `${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=2`,
+    `${BASE_URL}/movie/now_playing?api_key=${API_KEY}&page=3`,
     `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=1`,
     `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=2`,
-    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&page=1`,
-    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=release_date.desc&page=1`,
+    `${BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=3`,
+    // 2026 — multiple sort orders to get maximum coverage
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&vote_count.gte=0&page=1`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&vote_count.gte=0&page=2`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&vote_count.gte=0&page=3`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&vote_count.gte=0&page=4`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=popularity.desc&vote_count.gte=0&page=5`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=release_date.desc&vote_count.gte=0&page=1`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=release_date.desc&vote_count.gte=0&page=2`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2026&sort_by=vote_average.desc&vote_count.gte=1&page=1`,
+    // 2025 recent
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2025&sort_by=popularity.desc&page=1`,
+    `${BASE_URL}/discover/movie?api_key=${API_KEY}&primary_release_year=2025&sort_by=popularity.desc&page=2`,
   ];
 
   for (const url of endpoints) {
     try {
       const res  = await fetch(url);
       const data = await res.json();
+      if (!data.results) continue;
+
       data.results.forEach(m => {
         if (!m.poster_path) return;
+        if (seen.has(m.id)) return; // skip duplicates
+        seen.add(m.id);
+
+        const year = m.release_date
+          ? new Date(m.release_date).getFullYear()
+          : 2026;
+
         latestMovies.push({
           id:       m.id,
           title:    m.title,
-          year:     m.release_date ? new Date(m.release_date).getFullYear() : 2026,
+          year:     year,
           rating:   Math.round(m.vote_average * 10) / 10,
           duration: '—',
           genre:    getGenreName(m.genre_ids[0]),
           type:     'movie',
           desc:     m.overview,
           poster:   IMG_URL + m.poster_path,
-          backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
-          tags:     ['HD', 'New', 'Trending'],
+          backdrop: m.backdrop_path
+            ? BACK_URL + m.backdrop_path
+            : IMG_URL + m.poster_path,
+          tags: ['HD', 'New', 'Trending'],
         });
       });
     } catch(e) {
-      console.warn('Latest fetch failed:', url);
+      console.warn('Fetch failed:', url);
     }
   }
+
+  console.log(`Fetched ${latestMovies.length} latest movies`);
   return latestMovies;
 }
 

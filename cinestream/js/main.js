@@ -144,23 +144,40 @@
 ==================================================== */
 
 const ITEMS_PER_PAGE = 24;
-let currentFilter    = { type: 'popular', value: 'all' };
-let currentPage      = 1;
 let currentFiltered  = [];
+let currentPage      = 1;
 
-// ── Pagination ────────────────────────────────────────────
+// ── Core render functions ─────────────────────────────────
+function applyFilter(filtered, title) {
+  currentFiltered = filtered;
+  currentPage     = 1;
+
+  // Update title
+  const titleEl = document.querySelector('#latestSection .section-title');
+  if (titleEl) titleEl.textContent = title;
+
+  renderPage(1);
+
+  // Scroll to section
+  const section = $('latestSection');
+  if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function renderPage(page) {
   currentPage = page;
-  const start  = (page - 1) * ITEMS_PER_PAGE;
-  const end    = start + ITEMS_PER_PAGE;
-  const slice  = currentFiltered.slice(start, end);
-  const grid   = $('latestGrid');
+  const start = (page - 1) * ITEMS_PER_PAGE;
+  const end   = start + ITEMS_PER_PAGE;
+  const slice = currentFiltered.slice(start, end);
+  const grid  = $('latestGrid');
 
-  grid.innerHTML = '';
+  // CLEAR grid completely before adding new cards
+  while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+  // Add cards for this page only
   slice.forEach(item => grid.appendChild(buildCard(item)));
 
+  // Render pagination below grid
   renderPagination();
-  $('latestSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderPagination() {
@@ -170,21 +187,25 @@ function renderPagination() {
   const old = document.getElementById('paginationWrap');
   if (old) old.remove();
 
+  // Hide pagination if only 1 page or no content
   if (totalPages <= 1) return;
 
   const wrap = document.createElement('div');
   wrap.id = 'paginationWrap';
   wrap.innerHTML = buildPaginationHTML(currentPage, totalPages);
 
-  // Insert after latestSection grid
-  const section = $('latestSection');
-  section.querySelector('.container').appendChild(wrap);
+  $('latestSection').querySelector('.container').appendChild(wrap);
 
-  // Bind page buttons
+  // Bind buttons
   wrap.querySelectorAll('.page-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('disabled')) return;
       const p = parseInt(btn.dataset.page);
-      if (!isNaN(p)) renderPage(p);
+      if (!isNaN(p) && p !== currentPage) {
+        renderPage(p);
+        // Scroll to top of grid
+        $('latestSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   });
 }
@@ -192,11 +213,11 @@ function renderPagination() {
 function buildPaginationHTML(current, total) {
   let html = '<div class="pagination">';
 
-  // Previous
+  // Prev button
   html += `<button class="page-btn page-prev ${current === 1 ? 'disabled' : ''}"
     data-page="${current - 1}">‹ Prev</button>`;
 
-  // Page numbers — show window of 5 around current
+  // Smart page window
   const pages = [];
   if (total <= 7) {
     for (let i = 1; i <= total; i++) pages.push(i);
@@ -219,28 +240,24 @@ function buildPaginationHTML(current, total) {
     }
   });
 
-  // Next
+  // Next button
   html += `<button class="page-btn page-next ${current === total ? 'disabled' : ''}"
     data-page="${current + 1}">Next ›</button>`;
 
-  html += `<span class="page-info">${current} of ${total} pages
-    (${currentFiltered.length} titles)</span>`;
+  // Info
+  html += `<span class="page-info">
+    Page ${current} of ${total} &nbsp;·&nbsp; ${currentFiltered.length} titles
+  </span>`;
 
   html += '</div>';
   return html;
-}
-
-function applyFilter(filtered, title) {
-  currentFiltered = filtered;
-  currentPage     = 1;
-  document.querySelector('#latestSection .section-title').textContent = title;
-  renderPage(1);
 }
 
 // ── Build year buttons ────────────────────────────────────
 function buildYearButtons() {
   const panel = document.getElementById('panel-year');
   if (!panel) return;
+
   const currentYear = new Date().getFullYear();
   let html = `<button class="year-btn active" data-year="all">All</button>`;
   for (let y = currentYear + 1; y >= 1970; y--) {
@@ -254,12 +271,15 @@ function buildYearButtons() {
       btn.classList.add('active');
       const year = btn.dataset.year;
 
-      // Strictly filter by exact year only
       const filtered = year === 'all'
         ? [...ALL_CONTENT]
-        : ALL_CONTENT.filter(m => String(m.year) === String(year));
+        : ALL_CONTENT.filter(m => parseInt(m.year) === parseInt(year));
 
-      const label = year === 'all' ? '📅 All Years' : `📅 ${year} Movies & Series`;
+      const count = filtered.length;
+      const label = year === 'all'
+        ? `📅 All Years`
+        : `📅 ${year} — ${count} title${count !== 1 ? 's' : ''}`;
+
       applyFilter(filtered, label);
     });
   });
@@ -272,7 +292,7 @@ $$('.filter-tab').forEach(tab => {
     tab.classList.add('active');
     const tabName = tab.dataset.tab;
 
-    // Hide all panels first
+    // Hide all sub-panels
     document.querySelectorAll('.filter-panel').forEach(p => p.style.display = 'none');
 
     if (tabName === 'popular') {
@@ -280,8 +300,8 @@ $$('.filter-tab').forEach(tab => {
       applyFilter(sorted, '🔥 Most Popular');
     }
     else if (tabName === 'recent') {
-      const sorted = [...ALL_CONTENT].sort((a, b) => b.year - a.year);
-      applyFilter(sorted, '🆕 Recently Added');
+      const sorted = [...ALL_CONTENT].sort((a, b) => b.year - a.year || b.rating - a.rating);
+      applyFilter(sorted, '🆕 Most Recent');
     }
     else if (tabName === 'genre') {
       document.getElementById('panel-genre').style.display = 'flex';
@@ -301,15 +321,12 @@ $$('.genre-btn[data-genre]').forEach(btn => {
     $$('.genre-btn[data-genre]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const genre = btn.dataset.genre;
-
     const filtered = genre === 'all'
       ? [...ALL_CONTENT]
       : ALL_CONTENT.filter(m => m.genre === genre);
-
     const label = genre === 'all'
-      ? '🎬 All Movies'
+      ? '🎬 All Movies & Series'
       : `🎬 ${genre.charAt(0).toUpperCase() + genre.slice(1)}`;
-
     applyFilter(filtered, label);
   });
 });
@@ -320,29 +337,24 @@ $$('.genre-btn[data-letter]').forEach(btn => {
     $$('.genre-btn[data-letter]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const letter = btn.dataset.letter;
-
     const filtered = letter === 'all'
       ? [...ALL_CONTENT]
       : ALL_CONTENT.filter(m => m.title.toUpperCase().startsWith(letter));
-
-    const label = letter === 'all'
-      ? '🔤 All Titles'
-      : `🔤 Titles: "${letter}"`;
-
+    const label = letter === 'all' ? '🔤 All Titles' : `🔤 "${letter}"`;
     applyFilter(filtered, label);
   });
 });
 
-// Build year buttons after data loads
-document.addEventListener('dataReady', () => {
+// ── Init on data ready ────────────────────────────────────
+function initFilters() {
   buildYearButtons();
-  // Re-render current filter with updated data
-  if (currentFiltered.length === 0) {
-    const sorted = [...ALL_CONTENT].sort((a, b) => b.rating - a.rating);
-    applyFilter(sorted, '🔥 Most Popular');
-  }
-});
-if (ALL_CONTENT.length) buildYearButtons();
+  // Default view: most popular
+  const sorted = [...ALL_CONTENT].sort((a, b) => b.rating - a.rating);
+  applyFilter(sorted, '🔥 Most Popular');
+}
+
+document.addEventListener('dataReady', initFilters);
+if (ALL_CONTENT.length) initFilters();
 
   /* ====================================================
      SEARCH
