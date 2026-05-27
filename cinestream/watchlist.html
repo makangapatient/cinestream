@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Watchlist — CineStream</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .page-hero{background:linear-gradient(135deg,#0a0a0f 0%,#1a0a2e 100%);padding:100px 0 36px}
+    .page-hero h1{font-family:var(--font-head);font-size:48px;letter-spacing:3px;color:#fff;margin-bottom:8px}
+    .page-hero p{color:var(--muted);font-size:15px}
+    .watchlist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:32px 0 60px}
+    .wl-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;gap:14px;padding:12px;transition:all var(--transition);cursor:pointer}
+    .wl-card:hover{border-color:rgba(255,255,255,.2);background:var(--bg3);transform:translateY(-2px)}
+    .wl-poster{width:64px;height:90px;object-fit:cover;border-radius:8px;flex-shrink:0;background:var(--bg3)}
+    .wl-info{flex:1;min-width:0}
+    .wl-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wl-meta{font-size:12px;color:var(--muted);margin-bottom:8px}
+    .wl-actions{display:flex;gap:8px}
+    .wl-watch{padding:6px 14px;background:var(--primary);color:#fff;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:background .2s}
+    .wl-watch:hover{background:var(--primary-d)}
+    .wl-remove{padding:6px 10px;background:rgba(255,255,255,.06);color:var(--muted);border-radius:6px;font-size:12px;border:1px solid var(--border);cursor:pointer;transition:all .2s}
+    .wl-remove:hover{background:rgba(229,9,20,.15);color:var(--primary);border-color:var(--primary)}
+    .wl-empty{text-align:center;padding:80px 20px;color:var(--muted)}
+    .wl-empty .icon{font-size:72px;margin-bottom:16px}
+    .wl-empty h2{font-family:var(--font-head);font-size:28px;letter-spacing:2px;color:#fff;margin-bottom:12px}
+    .wl-empty p{font-size:15px;margin-bottom:24px}
+    .wl-empty a{padding:12px 28px;background:var(--primary);color:#fff;border-radius:8px;font-weight:600;font-size:14px}
+    .wl-count{font-size:13px;color:var(--muted);margin-bottom:16px}
+    .wl-clear{padding:8px 18px;background:transparent;border:1px solid rgba(229,9,20,.4);color:var(--primary);border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s}
+    .wl-clear:hover{background:rgba(229,9,20,.1)}
+  </style>
+</head>
+<body>
+  <nav class="navbar scrolled" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="movies.html" class="nav-link">Movies</a>
+        <a href="series.html" class="nav-link">TV Series</a>
+        <a href="top250.html" class="nav-link">Top 250</a>
+        <a href="watchlist.html" class="nav-link active">Watchlist</a>
+      </div>
+      <div class="nav-right">
+        <div class="search-wrap">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search..." autocomplete="off" />
+          <button class="search-btn" id="searchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></button>
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <button class="nav-menu-btn" id="menuBtn"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html">🏠 Home</a>
+    <a href="movies.html">🎬 Movies</a>
+    <a href="series.html">📺 TV Series</a>
+    <a href="watchlist.html">❤️ Watchlist</a>
+  </div>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>❤️ MY WATCHLIST</h1>
+      <p>Movies and shows you've saved to watch later</p>
+    </div>
+  </div>
+
+  <main>
+    <div class="container">
+      <div id="wlHeader" style="display:flex;align-items:center;justify-content:space-between;padding-top:24px;display:none">
+        <span class="wl-count" id="wlCount"></span>
+        <button class="wl-clear" id="wlClear">🗑 Clear All</button>
+      </div>
+      <div class="watchlist-grid" id="watchlistGrid"></div>
+    </div>
+  </main>
+
+  <!-- Modal & Player -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-hero"><img src="" alt="" class="modal-backdrop" id="modalBackdrop"/><div class="modal-hero-overlay"></div>
+        <div class="modal-hero-info">
+          <div class="modal-badges" id="modalBadges"></div>
+          <h2 class="modal-title" id="modalTitle"></h2>
+          <div class="modal-meta" id="modalMeta"></div>
+          <div class="modal-actions">
+            <button class="btn-watch" id="modalWatchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Watch Now</button>
+            <button class="btn-watchlist" id="modalWatchlistBtn">+ Watchlist</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-left"><h3>Overview</h3><p class="modal-desc" id="modalDesc"></p><div class="modal-details" id="modalDetails"></div></div>
+        <div class="modal-right"><h3>You May Also Like</h3><div class="related-grid" id="relatedGrid"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="player-overlay" id="playerOverlay">
+    <div class="player-container">
+      <div class="player-header">
+        <div class="player-breadcrumb">
+          <a href="#" class="breadcrumb-home" id="playerCloseLink">🏠 Movies</a>
+          <span class="breadcrumb-sep">→</span>
+          <span class="player-title" id="playerTitle"></span>
+        </div>
+        <div class="player-header-right">
+          <button class="player-close" id="playerClose">✕</button>
+        </div>
+      </div>
+      <div class="player-wrap"><div class="player-screen" id="playerScreen"><div class="player-placeholder"><div class="player-logo">▶</div><p>CineStream Player</p></div></div></div>
+      <div class="player-bottom">
+        <span class="sources-label">Servers:</span>
+        <button class="source-btn active" data-server="0">Server 1</button>
+        <button class="source-btn" data-server="1">Server 2</button>
+        <button class="source-btn" data-server="2">Server 3</button>
+        <button class="player-fullscreen-btn" id="playerFullscreen">⛶ Fullscreen</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand"><a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a><p>Watch free HD movies and TV series online.</p></div>
+        <div class="footer-links"><h4>Quick Links</h4><a href="movies.html">Movies</a><a href="series.html">TV Series</a><a href="top250.html">Top 250</a></div>
+        <div class="footer-links"><h4>Info</h4><a href="#">About</a><a href="#">DMCA</a><a href="#">Privacy</a></div>
+        <div class="footer-links"><h4>Account</h4><a href="watchlist.html">My Watchlist</a></div>
+      </div>
+      <div class="footer-bottom"><p>© 2024 CineStream. All rights reserved.</p></div>
+    </div>
+  </footer>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    // Watchlist page logic — runs after data loads
+    function renderWatchlist() {
+      const wlIds = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+      const grid  = document.getElementById('watchlistGrid');
+      const hdr   = document.getElementById('wlHeader');
+      const count = document.getElementById('wlCount');
+      grid.innerHTML = '';
+
+      if (!wlIds.length) {
+        hdr.style.display = 'none';
+        grid.innerHTML = `
+          <div class="wl-empty" style="grid-column:1/-1">
+            <div class="icon">❤️</div>
+            <h2>YOUR WATCHLIST IS EMPTY</h2>
+            <p>Save movies and shows to watch later by clicking "+ Watchlist" on any title.</p>
+            <a href="index.html">Browse Movies →</a>
+          </div>`;
+        return;
+      }
+
+      hdr.style.display = 'flex';
+      count.textContent = `${wlIds.length} title${wlIds.length !== 1 ? 's' : ''} saved`;
+
+      // Find items from loaded data
+      const items = wlIds.map(id => ALL_CONTENT.find(m => m.id === id)).filter(Boolean);
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'wl-card';
+        card.innerHTML = `
+          <img class="wl-poster" src="${item.poster}" alt="${item.title}" onerror="this.style.opacity=0">
+          <div class="wl-info">
+            <div class="wl-title">${item.title}</div>
+            <div class="wl-meta">⭐ ${item.rating} · ${item.year} · <span style="text-transform:capitalize">${item.genre}</span></div>
+            <div class="wl-actions">
+              <button class="wl-watch" data-id="${item.id}">▶ Watch</button>
+              <button class="wl-remove" data-id="${item.id}">✕ Remove</button>
+            </div>
+          </div>`;
+
+        card.querySelector('.wl-watch').addEventListener('click', e => {
+          e.stopPropagation();
+          openPlayer(item);
+        });
+
+        card.querySelector('.wl-remove').addEventListener('click', e => {
+          e.stopPropagation();
+          const wl  = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+          const idx = wl.indexOf(item.id);
+          if (idx !== -1) wl.splice(idx, 1);
+          localStorage.setItem('cs_watchlist', JSON.stringify(wl));
+          card.style.opacity = '0';
+          card.style.transform = 'scale(0.9)';
+          card.style.transition = 'all .3s';
+          setTimeout(() => { card.remove(); renderWatchlist(); }, 300);
+        });
+
+        card.addEventListener('click', () => openModal(item));
+        grid.appendChild(card);
+      });
+
+      // Clear all
+      document.getElementById('wlClear').onclick = () => {
+        if (confirm('Remove all items from watchlist?')) {
+          localStorage.removeItem('cs_watchlist');
+          renderWatchlist();
+        }
+      };
+    }
+
+    // Run after data loads
+    document.addEventListener('dataReady', renderWatchlist);
+    // Also try immediately for static data
+    if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) renderWatchlist();
+  </script>
+</body>
+</html>

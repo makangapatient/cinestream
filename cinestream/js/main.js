@@ -1,35 +1,39 @@
-// CineStream — Main Application (Fixed)
+// CineStream — Main Application v3 (Complete Fix)
 (function () {
   'use strict';
 
-  /* ── DOM helpers ───────────────────────────────────────── */
-  const $ = id => document.getElementById(id);
+  /* ─────────────────────────────────────────────────────
+     HELPERS
+  ───────────────────────────────────────────────────── */
+  const $  = id  => document.getElementById(id);
   const $$ = sel => document.querySelectorAll(sel);
 
-  /* ── State ─────────────────────────────────────────────── */
-  const ITEMS_PER_PAGE = 24;
-  let currentFiltered  = [];
-  let currentPage      = 1;
-  let currentHero      = 0;
-  let heroTimer        = null;
-  let watchlist        = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
-  let dataLoaded       = false;
+  /* ─────────────────────────────────────────────────────
+     STATE
+  ───────────────────────────────────────────────────── */
+  const PER_PAGE   = 24;
+  let filteredList = [];   // current filtered dataset
+  let curPage      = 1;    // current pagination page
+  let heroIdx      = 0;
+  let heroTimer    = null;
+  let playerSrvs   = [];
+  let uiTimer      = null;
+  let watchlist    = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+  let bootCount    = 0;    // how many times dataReady fired
 
-  /* ====================================================
-     CARD BUILDER
-  ==================================================== */
+  /* ─────────────────────────────────────────────────────
+     BUILD A MOVIE CARD
+  ───────────────────────────────────────────────────── */
   function buildCard(item) {
-    const card = document.createElement('div');
-    card.className = 'movie-card';
-    card.dataset.id = item.id;
+    const div = document.createElement('div');
+    div.className = 'movie-card';
 
-    const badge = item.tags?.includes('New')
-      ? '<div class="card-badge new-badge">NEW</div>'
-      : item.tags?.includes('Trending')
-        ? '<div class="card-badge" style="background:#f59e0b">HOT</div>'
-        : '<div class="card-badge hd">HD</div>';
+    const badgeText  = item.tags?.includes('New')      ? 'NEW'
+                     : item.tags?.includes('Trending') ? 'HOT' : 'HD';
+    const badgeStyle = item.tags?.includes('New')      ? 'background:#00c853'
+                     : item.tags?.includes('Trending') ? 'background:#f59e0b' : '';
 
-    card.innerHTML = `
+    div.innerHTML = `
       <img class="card-poster" src="${item.poster}" alt="${item.title}" loading="lazy"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
       <div class="card-poster-placeholder" style="display:none">🎬</div>
@@ -45,194 +49,234 @@
       <div class="card-play">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
       </div>
-      ${badge}`;
+      <div class="card-badge hd" style="${badgeStyle}">${badgeText}</div>`;
 
-    card.addEventListener('click', () => openModal(item));
-    return card;
+    div.addEventListener('click', () => openModal(item));
+    return div;
   }
 
-  /* ====================================================
-     PAGINATION — core render
-  ==================================================== */
-  function renderPage(page) {
-    currentPage   = page;
-    const start   = (page - 1) * ITEMS_PER_PAGE;
-    const slice   = currentFiltered.slice(start, start + ITEMS_PER_PAGE);
-    const grid    = $('latestGrid');
+  /* ─────────────────────────────────────────────────────
+     FILL A GRID  (trending, top-rated, series sections)
+  ───────────────────────────────────────────────────── */
+  function fillGrid(gridId, items, limit) {
+    const g = $(gridId);
+    if (!g) return;
+    g.innerHTML = '';
+    items.slice(0, limit || 12).forEach(i => g.appendChild(buildCard(i)));
+  }
 
-    // Completely clear the grid
+  /* ─────────────────────────────────────────────────────
+     RENDER STATIC SECTIONS
+     (Trending Now, Top Rated, Popular TV Series)
+  ───────────────────────────────────────────────────── */
+  function renderSections() {
+    const trending = ALL_CONTENT
+      .filter(m => m.tags?.includes('Trending'))
+      .slice(0, 12);
+
+    const topRated = [...ALL_CONTENT]
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 12);
+
+    const series = (SERIES && SERIES.length ? SERIES : ALL_CONTENT.filter(m => m.type === 'series'))
+      .slice(0, 12);
+
+    fillGrid('trendingGrid', trending, 12);
+    fillGrid('topRatedGrid', topRated, 12);
+    fillGrid('seriesGrid',   series,   12);
+
+    // Show/hide trending section
+    const ts = $('trendingSection');
+    if (ts) ts.style.display = trending.length ? '' : 'none';
+  }
+
+  /* ─────────────────────────────────────────────────────
+     PAGINATED MAIN GRID
+  ───────────────────────────────────────────────────── */
+
+  /** Set filteredList + title, reset to page 1, render */
+  function applyFilter(items, title) {
+    filteredList = Array.isArray(items) ? items : [];
+    curPage      = 1;
+
+    const el = document.querySelector('#latestSection .section-title');
+    if (el) el.textContent = title || '';
+
+    renderPage();
+
+    const sec = $('latestSection');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /** Render curPage from filteredList into #latestGrid */
+  function renderPage() {
+    const grid  = $('latestGrid');
+    if (!grid) return;
+
+    const start = (curPage - 1) * PER_PAGE;
+    const slice = filteredList.slice(start, start + PER_PAGE);
+
+    // ── completely clear, then fill ──
     grid.innerHTML = '';
-
-    // Add only this page's cards
     slice.forEach(item => grid.appendChild(buildCard(item)));
 
-    // Rebuild pagination
+    // ── rebuild pagination below the grid ──
     buildPagination();
-
-    // Scroll to grid
-    $('latestSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function applyFilter(items, title) {
-    currentFiltered = items;
-    currentPage     = 1;
-
-    const titleEl = document.querySelector('#latestSection .section-title');
-    if (titleEl) titleEl.textContent = title;
-
-    renderPage(1);
   }
 
   function buildPagination() {
-    // Remove old
-    const old = $('paginationWrap');
+    // remove old
+    const old = $('pgWrap');
     if (old) old.remove();
 
-    const total = Math.ceil(currentFiltered.length / ITEMS_PER_PAGE);
-    if (total <= 1) return; // hide if not needed
+    const total = Math.ceil(filteredList.length / PER_PAGE);
+    if (total <= 1) return;   // nothing to show
 
     const wrap = document.createElement('div');
-    wrap.id = 'paginationWrap';
+    wrap.id    = 'pgWrap';
 
-    let html = '<div class="pagination">';
+    const nums = smartPageNums(curPage, total);
+    let   html = '<div class="pagination">';
 
     // Prev
-    html += `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}"
-      data-page="${currentPage - 1}">‹ Prev</button>`;
+    html += pgBtn(curPage - 1, '‹ Prev', curPage === 1, false);
 
-    // Page numbers
-    const pages = getPageNumbers(currentPage, total);
-    pages.forEach(p => {
-      if (p === '...') {
-        html += `<span class="page-ellipsis">…</span>`;
-      } else {
-        html += `<button class="page-btn ${p === currentPage ? 'active' : ''}"
-          data-page="${p}">${p}</button>`;
-      }
+    // Numbers
+    nums.forEach(n => {
+      if (n === '…') html += '<span class="page-ellipsis">…</span>';
+      else           html += pgBtn(n, n, false, n === curPage);
     });
 
     // Next
-    html += `<button class="page-btn ${currentPage === total ? 'disabled' : ''}"
-      data-page="${currentPage + 1}">Next ›</button>`;
+    html += pgBtn(curPage + 1, 'Next ›', curPage === total, false);
 
-    html += `<span class="page-info">Page ${currentPage} of ${total} · ${currentFiltered.length} titles</span>`;
+    html += `<span class="page-info">Page ${curPage} of ${total} · ${filteredList.length} titles</span>`;
     html += '</div>';
 
     wrap.innerHTML = html;
 
-    // Insert after the grid inside latestSection container
-    const container = $('latestSection').querySelector('.container');
-    container.appendChild(wrap);
+    // insert after grid inside its container
+    const container = $('latestSection')?.querySelector('.container');
+    if (container) container.appendChild(wrap);
 
-    // Bind clicks
-    wrap.querySelectorAll('.page-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.classList.contains('disabled') || btn.classList.contains('active')) return;
-        const p = parseInt(btn.dataset.page);
-        if (!isNaN(p)) renderPage(p);
+    // bind all buttons
+    wrap.querySelectorAll('[data-pg]').forEach(btn => {
+      btn.addEventListener('click', function () {
+        if (this.classList.contains('disabled') || this.classList.contains('active')) return;
+        curPage = parseInt(this.dataset.pg, 10);
+        renderPage();
+        $('latestSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
   }
 
-  function getPageNumbers(current, total) {
-    if (total <= 7) {
-      return Array.from({ length: total }, (_, i) => i + 1);
-    }
-    const pages = [1];
-    if (current > 3) pages.push('...');
-    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
-      pages.push(i);
-    }
-    if (current < total - 2) pages.push('...');
-    pages.push(total);
-    return pages;
+  function pgBtn(page, label, disabled, active) {
+    return `<button class="page-btn${active ? ' active' : ''}${disabled ? ' disabled' : ''}" data-pg="${page}">${label}</button>`;
   }
 
-  /* ====================================================
-     FILTER SYSTEM
-  ==================================================== */
+  function smartPageNums(cur, total) {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const r = [1];
+    if (cur > 3)        r.push('…');
+    for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) r.push(i);
+    if (cur < total - 2) r.push('…');
+    r.push(total);
+    return r;
+  }
+
+  /* ─────────────────────────────────────────────────────
+     FILTER SYSTEM  (tabs + genre + year + A-Z)
+  ───────────────────────────────────────────────────── */
+
   function buildYearButtons() {
     const panel = $('panel-year');
     if (!panel) return;
-
-    const now  = new Date().getFullYear();
-    let   html = `<button class="year-btn active" data-year="all">All</button>`;
+    const now = new Date().getFullYear();
+    let html  = `<button class="year-btn active" data-year="all">All</button>`;
     for (let y = now + 1; y >= 1970; y--) {
       html += `<button class="year-btn" data-year="${y}">${y}</button>`;
     }
     panel.innerHTML = html;
 
-    panel.querySelectorAll('.year-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        panel.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const yr = btn.dataset.year;
-        const filtered = yr === 'all'
+    panel.querySelectorAll('.year-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        panel.querySelectorAll('.year-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        const yr = b.dataset.year;
+        const f  = yr === 'all'
           ? [...ALL_CONTENT]
           : ALL_CONTENT.filter(m => String(m.year) === String(yr));
-        applyFilter(filtered, yr === 'all' ? '📅 All Years' : `📅 ${yr} — ${filtered.length} titles`);
+        applyFilter(f, yr === 'all' ? '📅 All Years' : `📅 ${yr} — ${f.length} title${f.length !== 1 ? 's' : ''}`);
       });
     });
   }
 
-  function initFilterTabs() {
+  function initFilterSystem() {
+    // ── Tab clicks ──
     $$('.filter-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         $$('.filter-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         $$('.filter-panel').forEach(p => p.style.display = 'none');
 
-        const name = tab.dataset.tab;
-        if (name === 'popular') {
-          applyFilter([...ALL_CONTENT].sort((a, b) => b.rating - a.rating), '🔥 Most Popular');
-        } else if (name === 'recent') {
-          applyFilter([...ALL_CONTENT].sort((a, b) => b.year - a.year), '🆕 Most Recent');
-        } else if (name === 'genre') {
-          $('panel-genre').style.display = 'flex';
-        } else if (name === 'year') {
-          $('panel-year').style.display = 'flex';
-        } else if (name === 'az') {
-          $('panel-az').style.display = 'flex';
+        switch (tab.dataset.tab) {
+          case 'popular':
+            applyFilter([...ALL_CONTENT].sort((a, b) => b.rating - a.rating), '🔥 Most Popular');
+            break;
+          case 'recent':
+            applyFilter([...ALL_CONTENT].sort((a, b) => b.year - a.year), '🆕 Most Recent');
+            break;
+          case 'genre':
+            $('panel-genre').style.display = 'flex';
+            break;
+          case 'year':
+            $('panel-year').style.display = 'flex';
+            break;
+          case 'az':
+            $('panel-az').style.display = 'flex';
+            break;
         }
       });
     });
 
-    $$('.genre-btn[data-genre]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        $$('.genre-btn[data-genre]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const g = btn.dataset.genre;
+    // ── Genre buttons ──
+    $$('.genre-btn[data-genre]').forEach(b => {
+      b.addEventListener('click', () => {
+        $$('.genre-btn[data-genre]').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        const g = b.dataset.genre;
         const f = g === 'all' ? [...ALL_CONTENT] : ALL_CONTENT.filter(m => m.genre === g);
         applyFilter(f, g === 'all' ? '🎬 All' : `🎬 ${g.charAt(0).toUpperCase() + g.slice(1)}`);
       });
     });
 
-    $$('.genre-btn[data-letter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        $$('.genre-btn[data-letter]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const l = btn.dataset.letter;
+    // ── A-Z buttons ──
+    $$('.genre-btn[data-letter]').forEach(b => {
+      b.addEventListener('click', () => {
+        $$('.genre-btn[data-letter]').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        const l = b.dataset.letter;
         const f = l === 'all' ? [...ALL_CONTENT] : ALL_CONTENT.filter(m => m.title.toUpperCase().startsWith(l));
         applyFilter(f, l === 'all' ? '🔤 All Titles' : `🔤 "${l}"`);
       });
     });
   }
 
-  /* ====================================================
+  /* ─────────────────────────────────────────────────────
      HERO SLIDER
-  ==================================================== */
+  ───────────────────────────────────────────────────── */
   function updateHero(idx) {
-    const items = HERO_ITEMS.length ? HERO_ITEMS : ALL_CONTENT.slice(0, 5);
-    const item  = items[idx];
+    const pool = (HERO_ITEMS && HERO_ITEMS.length) ? HERO_ITEMS : ALL_CONTENT.slice(0, 5);
+    const item = pool[idx];
     if (!item) return;
 
-    if ($('heroBg'))      $('heroBg').style.backgroundImage = `url('${item.backdrop}')`;
-    if ($('heroTitle'))   $('heroTitle').textContent   = item.title;
-    if ($('heroDesc'))    $('heroDesc').textContent    = item.desc;
-    if ($('heroRating'))  $('heroRating').textContent  = `⭐ ${item.rating}`;
-    if ($('heroYear'))    $('heroYear').textContent    = item.year;
-    if ($('heroDuration'))$('heroDuration').textContent= item.duration;
-    if ($('heroGenre'))   $('heroGenre').textContent   = item.genre?.charAt(0).toUpperCase() + item.genre?.slice(1);
+    if ($('heroBg'))       $('heroBg').style.backgroundImage = `url('${item.backdrop}')`;
+    if ($('heroTitle'))    $('heroTitle').textContent    = item.title;
+    if ($('heroDesc'))     $('heroDesc').textContent     = item.desc;
+    if ($('heroRating'))   $('heroRating').textContent   = `⭐ ${item.rating}`;
+    if ($('heroYear'))     $('heroYear').textContent     = item.year;
+    if ($('heroDuration')) $('heroDuration').textContent = item.duration;
+    if ($('heroGenre'))    $('heroGenre').textContent    = (item.genre || '').charAt(0).toUpperCase() + (item.genre || '').slice(1);
 
     $$('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
 
@@ -243,25 +287,25 @@
   function startHeroTimer() {
     clearInterval(heroTimer);
     heroTimer = setInterval(() => {
-      const items = HERO_ITEMS.length ? HERO_ITEMS : ALL_CONTENT.slice(0, 5);
-      currentHero = (currentHero + 1) % items.length;
-      updateHero(currentHero);
+      const pool = (HERO_ITEMS && HERO_ITEMS.length) ? HERO_ITEMS : ALL_CONTENT.slice(0, 5);
+      heroIdx    = (heroIdx + 1) % pool.length;
+      updateHero(heroIdx);
     }, 6000);
   }
 
-  $$('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      currentHero = parseInt(dot.dataset.idx);
-      updateHero(currentHero);
+  $$('.hero-dot').forEach(d => {
+    d.addEventListener('click', () => {
+      heroIdx = parseInt(d.dataset.idx, 10);
+      updateHero(heroIdx);
       startHeroTimer();
     });
   });
 
-  /* ====================================================
+  /* ─────────────────────────────────────────────────────
      NAVBAR
-  ==================================================== */
+  ───────────────────────────────────────────────────── */
   window.addEventListener('scroll', () => {
-    document.getElementById('navbar')?.classList.toggle('scrolled', window.scrollY > 60);
+    $('navbar')?.classList.toggle('scrolled', window.scrollY > 60);
   }, { passive: true });
 
   $('menuBtn')?.addEventListener('click', () => $('mobileMenu')?.classList.toggle('open'));
@@ -272,45 +316,48 @@
     }
   });
 
-  /* ====================================================
-     SEARCH
-  ==================================================== */
-  const searchInput    = $('searchInput');
-  const searchDropdown = $('searchDropdown');
+  /* ─────────────────────────────────────────────────────
+     SEARCH (navbar dropdown)
+  ───────────────────────────────────────────────────── */
+  const sInput = $('searchInput');
+  const sDrop  = $('searchDropdown');
 
-  if (searchInput) {
-    searchInput.addEventListener('input', async () => {
-      const q = searchInput.value.trim().toLowerCase();
-      if (q.length < 2) { searchDropdown?.classList.remove('open'); return; }
+  if (sInput) {
+    sInput.addEventListener('input', async () => {
+      const q = sInput.value.trim().toLowerCase();
+      if (q.length < 2) { sDrop?.classList.remove('open'); return; }
 
-      let results = ALL_CONTENT.filter(m =>
-        m.title.toLowerCase().includes(q) ||
-        m.genre.toLowerCase().includes(q)
+      // local match
+      let res = ALL_CONTENT.filter(m =>
+        m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
       ).slice(0, 6);
 
-      // Live TMDB search for missing titles
+      // live TMDB top-up
       if (q.length >= 3 && window.TMDB_KEY) {
         try {
-          const res  = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${window.TMDB_KEY}&query=${encodeURIComponent(q)}`);
-          const data = await res.json();
-          const ids  = new Set(results.map(m => m.id));
-          data.results.filter(m => m.poster_path && !ids.has(m.id)).slice(0, 4).forEach(m => {
-            results.push({
-              id: m.id, title: m.title,
-              year: m.release_date ? new Date(m.release_date).getFullYear() : '—',
-              rating: Math.round(m.vote_average * 10) / 10,
-              genre: 'drama', type: 'movie', desc: m.overview,
+          const r  = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${window.TMDB_KEY}&query=${encodeURIComponent(q)}`);
+          const d  = await r.json();
+          const existing = new Set(res.map(m => m.id));
+          (d.results || []).filter(m => m.poster_path && !existing.has(m.id)).slice(0, 4).forEach(m => {
+            const isTv = m.media_type === 'tv' || !!m.name;
+            res.push({
+              id:       m.id,
+              title:    m.title || m.name,
+              year:     new Date(m.release_date || m.first_air_date || '2024').getFullYear(),
+              rating:   Math.round((m.vote_average || 0) * 10) / 10,
+              genre:    'drama', type: isTv ? 'series' : 'movie',
+              desc:     m.overview || '', duration: '—',
               poster:   `https://image.tmdb.org/t/p/w500${m.poster_path}`,
               backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-              tags: ['HD'], duration: '—',
+              tags:     ['HD'],
             });
           });
-        } catch(e) {}
+        } catch (_) {}
       }
 
-      if (!searchDropdown) return;
-      searchDropdown.innerHTML = results.length
-        ? results.slice(0, 8).map(m => `
+      if (!sDrop) return;
+      sDrop.innerHTML = res.length
+        ? res.slice(0, 8).map(m => `
             <div class="search-result-item" data-id="${m.id}">
               <img src="${m.poster}" alt="${m.title}" onerror="this.style.opacity=0">
               <div class="search-result-info">
@@ -320,45 +367,51 @@
             </div>`).join('')
         : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
 
-      searchDropdown.classList.add('open');
+      sDrop.classList.add('open');
 
-      searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+      sDrop.querySelectorAll('.search-result-item').forEach(el => {
         el.addEventListener('click', () => {
           let item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-          if (!item) item = results.find(m => m.id === parseInt(el.dataset.id));
-          if (item) {
-            if (!ALL_CONTENT.find(m => m.id === item.id)) ALL_CONTENT.push(item);
-            openModal(item);
+          if (!item) {
+            item = res.find(m => m.id === parseInt(el.dataset.id));
+            if (item && !ALL_CONTENT.find(m => m.id === item.id)) ALL_CONTENT.push(item);
           }
-          searchDropdown.classList.remove('open');
-          searchInput.value = '';
+          if (item) openModal(item);
+          sDrop.classList.remove('open');
+          sInput.value = '';
         });
       });
     });
 
+    sInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        window.location.href = `search.html?q=${encodeURIComponent(sInput.value.trim())}`;
+      }
+    });
+
     document.addEventListener('click', e => {
-      if (!e.target.closest('.search-wrap')) searchDropdown?.classList.remove('open');
+      if (!e.target.closest('.search-wrap')) sDrop?.classList.remove('open');
     });
   }
 
-  /* ====================================================
+  /* ─────────────────────────────────────────────────────
      MODAL
-  ==================================================== */
+  ───────────────────────────────────────────────────── */
   function openModal(item) {
-    const overlay = $('modalOverlay');
-    if (!overlay) return;
+    const ov = $('modalOverlay');
+    if (!ov) return;
 
-    $('modalBackdrop').src    = item.backdrop || item.poster;
+    $('modalBackdrop').src      = item.backdrop || item.poster;
     $('modalTitle').textContent = item.title;
-    $('modalDesc').textContent  = item.desc;
+    $('modalDesc').textContent  = item.desc || 'No description available.';
 
     $('modalBadges').innerHTML = `
       <span class="badge badge-hd">HD</span>
       <span class="badge badge-free">FREE</span>
       ${item.type === 'series' ? '<span class="badge" style="background:rgba(255,255,255,.15)">SERIES</span>' : ''}`;
 
-    const inWl  = watchlist.includes(item.id);
-    const wBtn  = $('modalWatchlistBtn');
+    const inWl = watchlist.includes(item.id);
+    const wBtn = $('modalWatchlistBtn');
     wBtn.textContent = inWl ? '✓ In Watchlist' : '+ Watchlist';
     wBtn.className   = 'btn-watchlist' + (inWl ? ' added' : '');
 
@@ -377,6 +430,7 @@
       <div class="detail-row"><span class="detail-label">Rating</span><span class="detail-val">⭐ ${item.rating} / 10</span></div>
       <div class="detail-row"><span class="detail-label">Quality</span><span class="detail-val" style="color:var(--accent)">HD 1080p</span></div>`;
 
+    // Related
     const related = ALL_CONTENT
       .filter(m => m.genre === item.genre && m.id !== item.id)
       .sort(() => Math.random() - 0.5)
@@ -390,13 +444,14 @@
 
     $('relatedGrid').querySelectorAll('.related-card').forEach(el => {
       el.addEventListener('click', () => {
-        const rel = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-        if (rel) openModal(rel);
+        const r = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
+        if (r) openModal(r);
       });
     });
 
-    $('modalWatchBtn').onclick   = () => { closeModal(); openPlayer(item); };
-    $('modalTrailerBtn').onclick = () => showToast('🎬 Trailer — connect YouTube API');
+    $('modalWatchBtn').onclick = () => { closeModal(); openPlayer(item); };
+    if ($('modalTrailerBtn')) $('modalTrailerBtn').onclick = () => showToast('🎬 Trailer — connect YouTube API');
+
     wBtn.onclick = () => {
       const idx = watchlist.indexOf(item.id);
       if (idx === -1) {
@@ -413,7 +468,7 @@
       localStorage.setItem('cs_watchlist', JSON.stringify(watchlist));
     };
 
-    overlay.classList.add('open');
+    ov.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 
@@ -423,68 +478,62 @@
   }
 
   $('modalClose')?.addEventListener('click', closeModal);
-  $('modalOverlay')?.addEventListener('click', e => { if (e.target === $('modalOverlay')) closeModal(); });
+  $('modalOverlay')?.addEventListener('click', e => {
+    if (e.target === $('modalOverlay')) closeModal();
+  });
 
-  /* ====================================================
+  /* ─────────────────────────────────────────────────────
      PLAYER
-  ==================================================== */
-  let currentServers = [];
-  let uiHideTimer;
-
+  ───────────────────────────────────────────────────── */
   function openPlayer(item) {
     if ($('playerTitle')) $('playerTitle').textContent = item.title;
-    const screen = $('playerScreen');
+    const sc = $('playerScreen');
 
-    currentServers = item.type === 'series'
-      ? [
-          `https://vidsrc.to/embed/tv/${item.id}/1/1`,
-          `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
-          `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
-        ]
-      : [
-          `https://vidsrc.to/embed/movie/${item.id}`,
-          `https://www.2embed.cc/embed/${item.id}`,
-          `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
-        ];
+    playerSrvs = item.type === 'series'
+      ? [`https://vidsrc.to/embed/tv/${item.id}/1/1`,
+         `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
+         `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`]
+      : [`https://vidsrc.to/embed/movie/${item.id}`,
+         `https://www.2embed.cc/embed/${item.id}`,
+         `https://multiembed.mov/?video_id=${item.id}&tmdb=1`];
 
-    loadServer(0, screen);
+    loadServer(0, sc);
 
     $$('.source-btn').forEach((btn, i) => {
       btn.classList.toggle('active', i === 0);
       btn.onclick = () => {
         $$('.source-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        loadServer(i, screen);
+        loadServer(i, sc);
       };
     });
 
     if ($('playerFullscreen')) $('playerFullscreen').onclick = toggleFullscreen;
     if ($('playerPip'))        $('playerPip').onclick = () => showToast('📺 Use browser PiP button');
 
-    const overlay = $('playerOverlay');
-    overlay.addEventListener('mousemove', resetUiTimer);
-    overlay.addEventListener('touchstart', resetUiTimer);
-    overlay.classList.add('open');
+    const ov = $('playerOverlay');
+    ov.addEventListener('mousemove', resetUiTimer);
+    ov.addEventListener('touchstart', resetUiTimer);
+    ov.classList.add('open');
     document.body.style.overflow = 'hidden';
     resetUiTimer();
   }
 
-  function loadServer(index, screen) {
-    const url = currentServers[index] || currentServers[0];
-    screen.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
+  function loadServer(i, sc) {
+    const url = playerSrvs[i] || playerSrvs[0];
+    sc.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
   }
 
   function resetUiTimer() {
     $('playerOverlay')?.classList.remove('hide-ui');
-    clearTimeout(uiHideTimer);
-    uiHideTimer = setTimeout(() => $('playerOverlay')?.classList.add('hide-ui'), 3500);
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(() => $('playerOverlay')?.classList.add('hide-ui'), 3500);
   }
 
   function toggleFullscreen() {
-    const el = $('playerOverlay');
     if (!document.fullscreenElement) {
-      el.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
-      if ($('playerFullscreen')) $('playerFullscreen').textContent = '⊠ Exit Fullscreen';
+      $('playerOverlay')?.requestFullscreen();
+      if ($('playerFullscreen')) $('playerFullscreen').textContent = '⊠ Exit';
     } else {
       document.exitFullscreen();
       if ($('playerFullscreen')) $('playerFullscreen').textContent = '⛶ Fullscreen';
@@ -500,24 +549,24 @@
   function closePlayer() {
     $('playerOverlay')?.classList.remove('open', 'hide-ui');
     if ($('playerScreen')) $('playerScreen').innerHTML = '';
-    clearTimeout(uiHideTimer);
+    clearTimeout(uiTimer);
     if (document.fullscreenElement) document.exitFullscreen();
     document.body.style.overflow = '';
   }
 
   $('playerClose')?.addEventListener('click', closePlayer);
-  $('playerOverlay')?.addEventListener('click', e => { if (e.target === $('playerOverlay')) closePlayer(); });
-
-  // Player back link
+  $('playerOverlay')?.addEventListener('click', e => {
+    if (e.target === $('playerOverlay')) closePlayer();
+  });
   $('playerCloseLink')?.addEventListener('click', e => {
     e.preventDefault();
     closePlayer();
     $('latestSection')?.scrollIntoView({ behavior: 'smooth' });
   });
 
-  /* ====================================================
+  /* ─────────────────────────────────────────────────────
      TOAST
-  ==================================================== */
+  ───────────────────────────────────────────────────── */
   let toastTimer;
   function showToast(msg) {
     const t = $('toast');
@@ -528,82 +577,97 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
   }
 
-  /* ====================================================
-     KEYBOARD SHORTCUTS
-  ==================================================== */
+  /* ─────────────────────────────────────────────────────
+     KEYBOARD
+  ───────────────────────────────────────────────────── */
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeModal(); closePlayer(); }
     if (e.key === 'f' && $('playerOverlay')?.classList.contains('open')) toggleFullscreen();
     if (e.key === '/' && !e.target.matches('input,textarea')) {
-      e.preventDefault(); searchInput?.focus();
+      e.preventDefault();
+      sInput?.focus();
     }
   });
 
-  /* ====================================================
-     NAV LINKS
-  ==================================================== */
+  /* ─────────────────────────────────────────────────────
+     TOP-LEVEL NAV LINKS  (Home / Movies / Series etc.)
+  ───────────────────────────────────────────────────── */
   document.addEventListener('click', e => {
     const link = e.target.closest('[data-page]');
     if (!link) return;
     e.preventDefault();
-    const pg = link.dataset.page;
+
     let items = ALL_CONTENT, title = '🎬 All Content';
-    if (pg === 'movies')   { items = MOVIES; title = '🎬 All Movies'; }
-    if (pg === 'series')   { items = SERIES; title = '📺 All TV Series'; }
-    if (pg === 'trending') { items = ALL_CONTENT.filter(m => m.tags?.includes('Trending')); title = '🔥 Trending'; }
-    if (pg === 'top250')   { items = [...ALL_CONTENT].sort((a,b) => b.rating - a.rating); title = '⭐ Top Rated'; }
+    switch (link.dataset.page) {
+      case 'movies':   items = MOVIES;  title = '🎬 All Movies';  break;
+      case 'series':   items = SERIES;  title = '📺 All TV Series'; break;
+      case 'trending': items = ALL_CONTENT.filter(m => m.tags?.includes('Trending')); title = '🔥 Trending'; break;
+      case 'top250':   items = [...ALL_CONTENT].sort((a, b) => b.rating - a.rating); title = '⭐ Top Rated'; break;
+    }
+
     applyFilter(items, title);
     $$('.nav-link').forEach(l => l.classList.remove('active'));
     link.classList?.add('active');
     $('mobileMenu')?.classList.remove('open');
   });
 
-  /* ====================================================
-     DATA READY — boot everything
-  ==================================================== */
-  function onDataReady() {
-    if (dataLoaded) return; // prevent double-init on first dataReady
-    dataLoaded = true;
+  /* ─────────────────────────────────────────────────────
+     SEE-ALL LINKS
+  ───────────────────────────────────────────────────── */
+  document.querySelectorAll('.see-all[data-page]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const pg = a.dataset.page;
+      document.querySelector(`[data-page="${pg}"]`)?.click();
+    });
+  });
 
-    // Hero
+  /* ─────────────────────────────────────────────────────
+     BOOT  — called once data is ready
+  ───────────────────────────────────────────────────── */
+  function boot() {
+    // 1. Hero slider
     updateHero(0);
     startHeroTimer();
 
-    // Build year buttons
+    // 2. Fill section grids (trending / top-rated / series)
+    renderSections();
+
+    // 3. Build year buttons for filter
     buildYearButtons();
 
-    // Filter tabs
-    initFilterTabs();
+    // 4. Bind filter tabs / genre / A-Z
+    initFilterSystem();
 
-    // Default view: show latest movies first
-    const latest = [...ALL_CONTENT].sort((a, b) => b.year - a.year);
+    // 5. Default paginated grid — show latest movies
+    const latest = [...ALL_CONTENT].sort((a, b) => b.year - a.year || b.rating - a.rating);
     applyFilter(latest, '🆕 Latest Movies');
 
-    // Hide loader
+    // 6. Hide loader
     const loader = $('loader');
     if (loader) loader.style.display = 'none';
   }
 
-  // Second dataReady (full historical data loaded) — refresh with more data
-  let readyCount = 0;
-  document.addEventListener('dataReady', () => {
-    readyCount++;
-    if (readyCount === 1) {
-      onDataReady();
+  function onDataReady() {
+    bootCount++;
+    if (bootCount === 1) {
+      // First fire — phase-1 data (latest + series)
+      boot();
     } else {
-      // Rebuild year buttons with full data, keep current filter
-      buildYearButtons();
-      // Re-apply current filter with updated ALL_CONTENT
-      const latest = [...ALL_CONTENT].sort((a, b) => b.year - a.year);
+      // Second fire — full historical data merged in
+      renderSections();          // refresh trending / top-rated grids
+      buildYearButtons();        // rebuild year list with all years
+      // Re-render the paginated grid with all data, same sort
+      const latest = [...ALL_CONTENT].sort((a, b) => b.year - a.year || b.rating - a.rating);
       applyFilter(latest, '🆕 Latest Movies');
       const loader = $('loader');
       if (loader) loader.style.display = 'none';
     }
-  });
-
-  // If data already loaded (static data.js with no async)
-  if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) {
-    onDataReady();
   }
+
+  document.addEventListener('dataReady', onDataReady);
+
+  // Fallback: if data.js is synchronous (no async fetch)
+  if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) boot();
 
 })();

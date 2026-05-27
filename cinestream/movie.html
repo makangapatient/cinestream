@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie — CineStream</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .movie-page-hero{position:relative;height:70vh;min-height:400px;overflow:hidden;display:flex;align-items:flex-end}
+    .movie-page-bg{position:absolute;inset:0;background-size:cover;background-position:center top}
+    .movie-page-overlay{position:absolute;inset:0;background:linear-gradient(to right,rgba(10,10,15,.98) 40%,rgba(10,10,15,.4) 80%),linear-gradient(to top,rgba(10,10,15,1) 0%,transparent 50%)}
+    .movie-page-content{position:relative;z-index:2;padding:0 0 40px;display:flex;gap:32px;align-items:flex-end;max-width:1400px;margin:0 auto;width:100%;padding:0 20px 40px}
+    .movie-poster-lg{width:180px;height:270px;object-fit:cover;border-radius:12px;flex-shrink:0;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+    .movie-page-info{flex:1}
+    .movie-page-title{font-family:var(--font-head);font-size:clamp(32px,5vw,60px);letter-spacing:2px;color:#fff;margin-bottom:12px;line-height:1}
+    .movie-page-meta{display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap;font-size:14px;color:rgba(255,255,255,.7)}
+    .movie-page-rating{color:var(--gold);font-size:20px;font-weight:700}
+    .movie-page-desc{font-size:15px;color:rgba(255,255,255,.8);line-height:1.7;max-width:600px;margin-bottom:20px}
+    .movie-page-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .movie-page-body{max-width:1400px;margin:0 auto;padding:40px 20px 60px;display:grid;grid-template-columns:1fr 320px;gap:40px}
+    @media(max-width:768px){.movie-page-body{grid-template-columns:1fr}.movie-poster-lg{width:120px;height:180px}.movie-page-content{flex-direction:column;gap:16px}}
+    .detail-section{margin-bottom:32px}
+    .detail-section h2{font-family:var(--font-head);font-size:22px;letter-spacing:1.5px;color:#fff;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    .cast-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px}
+    .cast-item{text-align:center}
+    .cast-avatar{width:80px;height:80px;border-radius:50%;background:var(--bg3);margin:0 auto 8px;object-fit:cover}
+    .cast-name{font-size:12px;color:var(--text)}
+    .info-table{display:flex;flex-direction:column;gap:10px}
+    .info-row{display:flex;gap:12px;font-size:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .info-label{color:var(--muted);min-width:110px;flex-shrink:0;font-weight:500}
+    .info-val{color:var(--text)}
+    .related-list{display:flex;flex-direction:column;gap:12px}
+    .related-list-item{display:flex;gap:12px;cursor:pointer;padding:8px;border-radius:8px;transition:background .2s}
+    .related-list-item:hover{background:var(--bg3)}
+    .related-list-img{width:52px;height:74px;object-fit:cover;border-radius:6px;flex-shrink:0;background:var(--bg3)}
+    .related-list-info strong{font-size:13px;display:block;margin-bottom:4px}
+    .related-list-info span{font-size:12px;color:var(--muted)}
+    .player-section{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:32px}
+    .player-section-inner{aspect-ratio:16/9;background:#000;position:relative;display:flex;align-items:center;justify-content:center}
+    .player-section-inner iframe{width:100%;height:100%;border:none;position:absolute;inset:0}
+    .player-placeholder-inline{text-align:center;color:var(--muted)}
+    .player-placeholder-inline .big-play{font-size:64px;color:var(--primary);cursor:pointer;transition:transform .2s;display:block;margin:0 auto 12px}
+    .player-placeholder-inline .big-play:hover{transform:scale(1.1)}
+    .server-tabs{display:flex;gap:8px;padding:12px 16px;background:rgba(0,0,0,.3);flex-wrap:wrap}
+    .breadcrumb-nav{font-size:13px;color:var(--muted);padding:16px 0 0;max-width:1400px;margin:0 auto;padding:16px 20px 0}
+    .breadcrumb-nav a{color:var(--primary);transition:color .2s}
+    .breadcrumb-nav a:hover{color:#ff4444}
+    .breadcrumb-nav span{margin:0 6px}
+  </style>
+</head>
+<body>
+  <nav class="navbar scrolled" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="movies.html" class="nav-link active">Movies</a>
+        <a href="series.html" class="nav-link">TV Series</a>
+        <a href="top250.html" class="nav-link">Top 250</a>
+        <a href="watchlist.html" class="nav-link">Watchlist</a>
+      </div>
+      <div class="nav-right">
+        <div class="search-wrap">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search..." autocomplete="off" />
+          <button class="search-btn" id="searchBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></button>
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <button class="nav-menu-btn" id="menuBtn"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html">🏠 Home</a>
+    <a href="movies.html">🎬 Movies</a>
+    <a href="series.html">📺 TV Series</a>
+    <a href="watchlist.html">❤️ Watchlist</a>
+  </div>
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb-nav">
+    <a href="index.html">Home</a><span>›</span>
+    <a href="movies.html" id="bcType">Movies</a><span>›</span>
+    <span id="bcTitle" style="color:var(--text)">Loading...</span>
+  </div>
+
+  <!-- Movie Hero -->
+  <div class="movie-page-hero" id="movieHero">
+    <div class="movie-page-bg" id="movieBg"></div>
+    <div class="movie-page-overlay"></div>
+    <div class="movie-page-content">
+      <img class="movie-poster-lg" id="moviePoster" src="" alt="" onerror="this.style.opacity=0" />
+      <div class="movie-page-info">
+        <h1 class="movie-page-title" id="movieTitle">Loading...</h1>
+        <div class="movie-page-meta">
+          <span class="movie-page-rating" id="movieRating">⭐ —</span>
+          <span id="movieYear">—</span>
+          <span id="movieDuration">—</span>
+          <span id="movieGenre" style="text-transform:capitalize;background:rgba(255,255,255,.12);padding:2px 10px;border-radius:20px"></span>
+          <span class="badge badge-hd">HD</span>
+          <span class="badge badge-free">FREE</span>
+        </div>
+        <p class="movie-page-desc" id="movieDesc">Loading description...</p>
+        <div class="movie-page-actions">
+          <button class="btn-watch" id="movieWatchBtn" onclick="scrollToPlayer()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Watch Now
+          </button>
+          <button class="btn-watchlist" id="movieWatchlistBtn">+ Watchlist</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="movie-page-body">
+      <!-- Left column -->
+      <div>
+        <!-- Inline Player -->
+        <div class="detail-section" id="playerSection">
+          <h2>▶ Watch</h2>
+          <div class="player-section">
+            <div class="player-section-inner" id="inlinePlayer">
+              <div class="player-placeholder-inline">
+                <span class="big-play" onclick="loadInlinePlayer(0)">▶</span>
+                <p style="color:rgba(255,255,255,.6)">Click to play</p>
+              </div>
+            </div>
+            <div class="server-tabs" id="serverTabs">
+              <span style="font-size:13px;color:var(--muted)">Servers:</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Movie Details -->
+        <div class="detail-section">
+          <h2>ℹ️ Details</h2>
+          <div class="info-table" id="infoTable"></div>
+        </div>
+
+        <!-- Cast -->
+        <div class="detail-section" id="castSection" style="display:none">
+          <h2>🎭 Cast</h2>
+          <div class="cast-grid" id="castGrid"></div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div>
+        <div class="detail-section">
+          <h2>🎬 More Like This</h2>
+          <div class="related-list" id="relatedList"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand"><a href="index.html" class="nav-logo"><span class="logo-icon">▶</span><span class="logo-text">CINE<em>STREAM</em></span></a><p>Watch free HD movies and TV series online.</p></div>
+        <div class="footer-links"><h4>Quick Links</h4><a href="movies.html">Movies</a><a href="series.html">TV Series</a><a href="top250.html">Top 250</a></div>
+        <div class="footer-links"><h4>Info</h4><a href="#">About</a><a href="#">DMCA</a><a href="#">Privacy</a></div>
+        <div class="footer-links"><h4>Account</h4><a href="watchlist.html">My Watchlist</a></div>
+      </div>
+      <div class="footer-bottom"><p>© 2024 CineStream. All rights reserved.</p></div>
+    </div>
+  </footer>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    // Get movie ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const movieId = parseInt(params.get('id'));
+    let currentItem = null;
+    let playerServers = [];
+
+    function loadMoviePage(item) {
+      currentItem = item;
+      document.title = `${item.title} — CineStream`;
+
+      // Breadcrumb
+      document.getElementById('bcTitle').textContent = item.title;
+      document.getElementById('bcType').textContent  = item.type === 'series' ? 'TV Series' : 'Movies';
+      document.getElementById('bcType').href         = item.type === 'series' ? 'series.html' : 'movies.html';
+
+      // Hero
+      document.getElementById('movieBg').style.backgroundImage = `url('${item.backdrop}')`;
+      document.getElementById('moviePoster').src = item.poster;
+      document.getElementById('moviePoster').alt = item.title;
+      document.getElementById('movieTitle').textContent    = item.title;
+      document.getElementById('movieRating').textContent   = `⭐ ${item.rating}`;
+      document.getElementById('movieYear').textContent     = item.year;
+      document.getElementById('movieDuration').textContent = item.duration;
+      document.getElementById('movieGenre').textContent    = item.genre;
+      document.getElementById('movieDesc').textContent     = item.desc || 'No description available.';
+
+      // Servers
+      playerServers = item.type === 'series'
+        ? [`https://vidsrc.to/embed/tv/${item.id}/1/1`, `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`, `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`]
+        : [`https://vidsrc.to/embed/movie/${item.id}`, `https://www.2embed.cc/embed/${item.id}`, `https://multiembed.mov/?video_id=${item.id}&tmdb=1`];
+
+      const tabs = document.getElementById('serverTabs');
+      tabs.innerHTML = '<span style="font-size:13px;color:var(--muted)">Servers:</span>';
+      playerServers.forEach((_, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'source-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = `Server ${i + 1}`;
+        btn.addEventListener('click', () => {
+          tabs.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          loadInlinePlayer(i);
+        });
+        tabs.appendChild(btn);
+      });
+
+      // Details table
+      const table = document.getElementById('infoTable');
+      const rows = [
+        ['Title',    item.title],
+        ['Year',     item.year],
+        ['Genre',    item.genre],
+        ['Rating',   `⭐ ${item.rating} / 10`],
+        ['Duration', item.duration],
+        ['Quality',  'HD 1080p'],
+        ['Type',     item.type === 'series' ? 'TV Series' : 'Movie'],
+      ];
+      if (item.director) rows.splice(2, 0, ['Director', item.director]);
+      if (item.cast)     rows.splice(3, 0, ['Cast',     item.cast]);
+      if (item.seasons)  rows.push(['Seasons', item.seasons]);
+      table.innerHTML = rows.map(([l, v]) => `
+        <div class="info-row">
+          <span class="info-label">${l}</span>
+          <span class="info-val" style="text-transform:${l==='Genre'?'capitalize':'none'}">${v}</span>
+        </div>`).join('');
+
+      // Watchlist button
+      const wlBtn = document.getElementById('movieWatchlistBtn');
+      const wl    = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+      if (wl.includes(item.id)) {
+        wlBtn.textContent = '✓ In Watchlist';
+        wlBtn.classList.add('added');
+      }
+      wlBtn.addEventListener('click', () => {
+        const cur = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+        const idx = cur.indexOf(item.id);
+        if (idx === -1) {
+          cur.push(item.id);
+          wlBtn.textContent = '✓ In Watchlist';
+          wlBtn.classList.add('added');
+          showToastMsg('✅ Added to Watchlist');
+        } else {
+          cur.splice(idx, 1);
+          wlBtn.textContent = '+ Watchlist';
+          wlBtn.classList.remove('added');
+          showToastMsg('Removed from Watchlist');
+        }
+        localStorage.setItem('cs_watchlist', JSON.stringify(cur));
+      });
+
+      // Fetch cast from TMDB
+      if (window.TMDB_KEY) {
+        fetch(`https://api.themoviedb.org/3/${item.type === 'series' ? 'tv' : 'movie'}/${item.id}/credits?api_key=${window.TMDB_KEY}`)
+          .then(r => r.json())
+          .then(data => {
+            const cast = (data.cast || []).slice(0, 8);
+            if (cast.length) {
+              document.getElementById('castSection').style.display = '';
+              document.getElementById('castGrid').innerHTML = cast.map(c => `
+                <div class="cast-item">
+                  <img class="cast-avatar" src="${c.profile_path ? 'https://image.tmdb.org/t/p/w185'+c.profile_path : ''}"
+                    onerror="this.src=''" alt="${c.name}" />
+                  <div class="cast-name">${c.name}</div>
+                </div>`).join('');
+            }
+          }).catch(() => {});
+      }
+
+      // Related
+      const related = ALL_CONTENT
+        .filter(m => m.genre === item.genre && m.id !== item.id)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 8);
+
+      document.getElementById('relatedList').innerHTML = related.map(m => `
+        <a href="movie.html?id=${m.id}" class="related-list-item">
+          <img class="related-list-img" src="${m.poster}" alt="${m.title}" onerror="this.style.opacity=0" />
+          <div class="related-list-info">
+            <strong>${m.title}</strong>
+            <span>⭐ ${m.rating} · ${m.year}</span>
+          </div>
+        </a>`).join('');
+    }
+
+    function loadInlinePlayer(serverIdx) {
+      const url    = playerServers[serverIdx] || playerServers[0];
+      const player = document.getElementById('inlinePlayer');
+      player.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture"></iframe>`;
+    }
+
+    function scrollToPlayer() {
+      loadInlinePlayer(0);
+      document.getElementById('playerSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function showToastMsg(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // Load movie when data is ready
+    function tryLoad() {
+      if (!movieId) { window.location.href = 'movies.html'; return; }
+      const item = ALL_CONTENT.find(m => m.id === movieId);
+      if (item) loadMoviePage(item);
+      else if (window.TMDB_KEY) {
+        // Fetch from TMDB if not in local data
+        fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${window.TMDB_KEY}`)
+          .then(r => r.json())
+          .then(m => {
+            const item = {
+              id: m.id, title: m.title,
+              year: m.release_date ? new Date(m.release_date).getFullYear() : '—',
+              rating: Math.round(m.vote_average * 10) / 10,
+              duration: m.runtime ? `${Math.floor(m.runtime/60)}h ${m.runtime%60}m` : '—',
+              genre: m.genres?.[0]?.name?.toLowerCase() || 'drama',
+              type: 'movie', desc: m.overview,
+              poster:   m.poster_path   ? `https://image.tmdb.org/t/p/w500${m.poster_path}`   : '',
+              backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : '',
+              tags: ['HD'],
+            };
+            ALL_CONTENT.push(item);
+            loadMoviePage(item);
+          }).catch(() => window.location.href = 'movies.html');
+      }
+    }
+
+    document.addEventListener('dataReady', tryLoad);
+    if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) tryLoad();
+  </script>
+</body>
+</html>

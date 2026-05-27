@@ -11,25 +11,6 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <div id="loader" style="
-    position:fixed; inset:0; background:#0a0a0f;
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    z-index:9999; font-family:'Bebas Neue',sans-serif;">
-    <div style="font-size:64px; color:#e50914; margin-bottom:16px">▶</div>
-    <div style="font-size:28px; letter-spacing:3px; color:#fff">CINESTREAM</div>
-    <div style="font-size:14px; color:#7a7a90; margin-top:12px" id="loadMsg">
-      Loading movies...
-    </div>
-    <div style="
-      width:200px; height:3px; background:#1a1a24;
-      border-radius:2px; margin-top:20px; overflow:hidden">
-      <div id="loadBar" style="
-        height:100%; width:0%; background:#e50914;
-        border-radius:2px; transition:width .3s">
-      </div>
-    </div>
-  </div>
 
   <!-- NAVBAR -->
   <nav class="navbar" id="navbar">
@@ -44,6 +25,7 @@
         <a href="#" class="nav-link" data-page="series">TV Series</a>
         <a href="#" class="nav-link" data-page="trending">Trending</a>
         <a href="#" class="nav-link" data-page="top250">Top 250</a>
+        <a href="watchlist.html" class="nav-link">❤️ Watchlist</a>
       </div>
       <div class="nav-right">
         <div class="search-wrap">
@@ -108,20 +90,21 @@
   <!-- MAIN CONTENT -->
   <main class="main" id="main">
 
-    <!-- Genre Filter -->
+    <!-- Filter System -->
     <section class="genre-bar">
       <div class="container">
-        <!-- Filter Tabs -->
+
+        <!-- Tab Row -->
         <div class="filter-tabs">
-          <button class="filter-tab active" data-tab="popular">Popular</button>
-          <button class="filter-tab" data-tab="recent">Recent</button>
-          <button class="filter-tab" data-tab="genre">Genre</button>
-          <button class="filter-tab" data-tab="year">Year</button>
-          <button class="filter-tab" data-tab="az">A-Z</button>
+          <button class="filter-tab active" data-tab="popular">🔥 Popular</button>
+          <button class="filter-tab" data-tab="recent">🆕 Recent</button>
+          <button class="filter-tab" data-tab="genre">🎭 Genre</button>
+          <button class="filter-tab" data-tab="year">📅 Year</button>
+          <button class="filter-tab" data-tab="az">🔤 A-Z</button>
         </div>
-    
-        <!-- Genre Row -->
-        <div class="genre-scroll filter-panel" id="panel-genre">
+
+        <!-- Genre Panel -->
+        <div class="genre-scroll filter-panel" id="panel-genre" style="display:none">
           <button class="genre-btn active" data-genre="all">All</button>
           <button class="genre-btn" data-genre="action">Action</button>
           <button class="genre-btn" data-genre="comedy">Comedy</button>
@@ -134,13 +117,11 @@
           <button class="genre-btn" data-genre="documentary">Documentary</button>
           <button class="genre-btn" data-genre="crime">Crime</button>
         </div>
-    
-        <!-- Year Row -->
-        <div class="genre-scroll filter-panel" id="panel-year" style="display:none">
-          <!-- Filled by JS -->
-        </div>
-    
-        <!-- A-Z Row -->
+
+        <!-- Year Panel (built by JS) -->
+        <div class="genre-scroll filter-panel" id="panel-year" style="display:none"></div>
+
+        <!-- A-Z Panel -->
         <div class="genre-scroll filter-panel" id="panel-az" style="display:none">
           <button class="genre-btn active" data-letter="all">All</button>
           <button class="genre-btn" data-letter="A">A</button>
@@ -170,6 +151,7 @@
           <button class="genre-btn" data-letter="Y">Y</button>
           <button class="genre-btn" data-letter="Z">Z</button>
         </div>
+
       </div>
     </section>
 
@@ -257,41 +239,25 @@
   <!-- PLAYER MODAL -->
   <div class="player-overlay" id="playerOverlay">
     <div class="player-container" id="playerContainer">
-  
-      <!-- Top bar -->
       <div class="player-header">
-        <div class="player-breadcrumb">
-          <a href="#" class="breadcrumb-home" id="playerCloseLink">🏠 Movies</a>
-          <span class="breadcrumb-sep">→</span>
-          <span class="player-title" id="playerTitle"></span>
-        </div>>
-        <div class="player-header-right">
-          <button class="player-btn" id="playerPip" title="Picture in Picture">⧉</button>
-          <button class="player-close" id="playerClose" title="Close">✕</button>
-        </div>
+        <span class="player-title" id="playerTitle"></span>
+        <button class="player-close" id="playerClose">✕</button>
       </div>
-  
-      <!-- Video -->
-      <div class="player-wrap" id="playerWrap">
+      <div class="player-wrap">
         <div class="player-screen" id="playerScreen">
           <div class="player-placeholder">
             <div class="player-logo">▶</div>
             <p>CineStream Player</p>
+            <p class="player-sub">Embed your video source URL in js/main.js</p>
           </div>
         </div>
       </div>
-  
-      <!-- Bottom bar -->
-      <div class="player-bottom" id="playerBottom">
+      <div class="player-sources" id="playerSources">
         <span class="sources-label">Servers:</span>
-        <button class="source-btn active" data-server="0">Server 1</button>
-        <button class="source-btn" data-server="1">Server 2</button>
-        <button class="source-btn" data-server="2">Server 3</button>
-        <button class="player-fullscreen-btn" id="playerFullscreen">
-          ⛶ Fullscreen
-        </button>
+        <button class="source-btn active">Server 1</button>
+        <button class="source-btn">Server 2</button>
+        <button class="source-btn">Server 3</button>
       </div>
-  
     </div>
   </div>
 
