@@ -488,100 +488,84 @@
   /* ─────────────────────────────────────────────────────
      PLAYER
   ───────────────────────────────────────────────────── */
-  function openPlayer(item) {
-   console.log('[Player] Opening item:', item);
-   console.log('[Player] Item ID:', item ? item.id : 'NO ITEM');
+ function openPlayer(item) {
+  console.log('[Player] item:', JSON.stringify(item));
 
-   if (!item) {
-    showToast('Error: No movie data found.');
+  if (!item || !item.id) {
+    showToast('Error: Movie data missing.');
     return;
-   }
+  }
 
-   if (!item.id) {
-    showToast('Error: Movie ID missing.');
-    return;
-   }
+  const id = item.id;
 
-  try {
+  // Title & breadcrumb
+  const playerTitle = $('playerTitle');
+  if (playerTitle) playerTitle.textContent = `${item.title} (${item.year})`;
 
-    // Title
-    const playerTitle = $('playerTitle');
-    if (playerTitle) playerTitle.textContent = `${item.title} (${item.year})`;
+  const breadcrumbHome = $('breadcrumbHome');
+  if (breadcrumbHome) {
+    breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
+    breadcrumbHome.onclick = (e) => {
+      e.preventDefault();
+      closePlayer();
+      if (item.type === 'series') {
+        window.location.href = 'series.html';
+      } else {
+        const section = document.getElementById('latestSection');
+        if (section) section.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+  }
 
-    // Breadcrumb — safe null check
-    const breadcrumbHome = $('breadcrumbHome');
-    if (breadcrumbHome) {
-      breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
-      breadcrumbHome.onclick = (e) => {
-        e.preventDefault();
-        closePlayer();
-        if (item.type === 'series') {
-          window.location.href = 'series.html';
-        } else {
-          const section = document.getElementById('latestSection');
-          if (section) section.scrollIntoView({ behavior: 'smooth' });
-        }
-      };
-    }
-
-    // Build server URLs
-    currentServers = item.type === 'series'
-      currentServers = item.type === 'series'
-  ? [
-      `https://embed.su/embed/tv/${item.id}/1/1`,
-      `https://autoembed.co/tv/tmdb/${item.id}-1-1`,
-      `https://player.videasy.net/tv/${item.id}/1/1`,
-    ]
-  : [
-      `https://embed.su/embed/movie/${item.id}`,
-      `https://autoembed.co/movie/tmdb/${item.id}`,
-      `https://player.videasy.net/movie/${item.id}`,
+  // Build servers using real TMDB id
+  if (item.type === 'series') {
+    currentServers = [
+      `https://embed.su/embed/tv/${id}/1/1`,
+      `https://autoembed.co/tv/tmdb/${id}-1-1`,
+      `https://player.videasy.net/tv/${id}/1/1`,
     ];
+  } else {
+    currentServers = [
+      `https://embed.su/embed/movie/${id}`,
+      `https://autoembed.co/movie/tmdb/${id}`,
+      `https://player.videasy.net/movie/${id}`,
+    ];
+  }
 
-    // Load first server
-    const screen = $('playerScreen');
-    if (screen) loadServer(0, screen);
+  console.log('[Player] servers:', currentServers);
 
-    // Server buttons
-    $$('.source-btn').forEach(btn => {
-      btn.classList.remove('active');
-      if (btn.dataset.server === '0') btn.classList.add('active');
-      btn.onclick = () => {
-        $$('.source-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const s = $('playerScreen');
-        if (s) loadServer(parseInt(btn.dataset.server), s);
-      };
-    });
+  // Load first server
+  const screen = $('playerScreen');
+  if (screen) loadServer(0, screen);
 
-    // Fullscreen button
-    const fsBtn = $('playerFullscreen');
-    if (fsBtn) fsBtn.onclick = () => toggleFullscreen();
+  // Server buttons
+  $$('.source-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.server === '0') btn.classList.add('active');
+    btn.onclick = () => {
+      $$('.source-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const s = $('playerScreen');
+      if (s) loadServer(parseInt(btn.dataset.server), s);
+    };
+  });
 
-    // PiP button
-    const pipBtn = $('playerPip');
-    if (pipBtn) pipBtn.onclick = () => showToast('📺 Use browser PiP button in address bar');
+  // Fullscreen
+  const fsBtn = $('playerFullscreen');
+  if (fsBtn) fsBtn.onclick = () => toggleFullscreen();
 
-    // Auto-hide UI
-    const overlay = $('playerOverlay');
-    if (overlay) {
-      overlay.onmousemove = resetUiTimer;
-      overlay.ontouchstart = resetUiTimer;
+  // PiP
+  const pipBtn = $('playerPip');
+  if (pipBtn) pipBtn.onclick = () => showToast('📺 Use browser PiP button');
 
-      // OPEN THE PLAYER
-      overlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-      resetUiTimer();
-    }
-
-  } catch(err) {
-    // If anything fails, force open the player anyway
-    console.error('openPlayer error:', err);
-    const overlay = $('playerOverlay');
-    if (overlay) {
-      overlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-    }
+  // Auto-hide UI
+  const overlay = $('playerOverlay');
+  if (overlay) {
+    overlay.onmousemove = resetUiTimer;
+    overlay.ontouchstart = resetUiTimer;
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    resetUiTimer();
   }
 }
 
@@ -591,11 +575,25 @@
     sc.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
   }
 
-  function resetUiTimer() {
-    $('playerOverlay')?.classList.remove('hide-ui');
-    clearTimeout(uiTimer);
-    uiTimer = setTimeout(() => $('playerOverlay')?.classList.add('hide-ui'), 3500);
+  function loadServer(index, screen) {
+  const url = currentServers[index] || currentServers[0];
+  if (!url || url.includes('undefined')) {
+    screen.innerHTML = `
+      <div class="player-placeholder">
+        <div class="player-logo">▶</div>
+        <p style="color:#fff">No source available for this title</p>
+        <p style="color:#7a7a90;font-size:13px">Try another server below</p>
+      </div>`;
+    return;
   }
+  screen.innerHTML = `
+    <iframe
+      src="${url}"
+      allowfullscreen
+      allow="autoplay; fullscreen; picture-in-picture"
+      style="width:100%;height:100%;border:none">
+    </iframe>`;
+}
 
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
