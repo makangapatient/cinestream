@@ -489,7 +489,19 @@
   // Breadcrumb
   $('playerTitle').textContent = `${item.title} (${item.year})`;
   const breadcrumbHome = $('breadcrumbHome');
+if (breadcrumbHome) {
   breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
+  breadcrumbHome.onclick = (e) => {
+    e.preventDefault();
+    closePlayer();
+    if (item.type === 'series') {
+      window.location.href = 'series.html';
+    } else {
+      const section = document.getElementById('latestSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+}
   breadcrumbHome.onclick = (e) => {
     e.preventDefault();
     closePlayer();
