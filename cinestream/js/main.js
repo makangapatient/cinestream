@@ -575,6 +575,12 @@ if (overlay) {
   overlay.ontouchstart = resetUiTimer;
 }
 
+  function loadServer(i, sc) {
+    const url = playerSrvs[i] || playerSrvs[0];
+    console.log('[Player] Loading URL:', url);
+    sc.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
+  }
+
   function loadServer(index, screen) {
   const url = currentServers[index] || currentServers[0];
   if (!url || url.includes('undefined')) {
