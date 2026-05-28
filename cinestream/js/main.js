@@ -1,9 +1,12 @@
 // CineStream — Main Application v3 (Complete Fix)
+
+
+let currentServers = [];
+let uiHideTimer;
+
 (function () {
   'use strict';
 
-  let currentServers = [];
-  let uiHideTimer;
 
   /* ─────────────────────────────────────────────────────
      HELPERS
@@ -593,7 +596,7 @@
       allow="autoplay; fullscreen; picture-in-picture"
       style="width:100%;height:100%;border:none">
     </iframe>`;
-}
+     }
 
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
