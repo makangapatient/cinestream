@@ -486,38 +486,68 @@
      PLAYER
   ───────────────────────────────────────────────────── */
   function openPlayer(item) {
-    if ($('playerTitle')) $('playerTitle').textContent = item.title;
-    const sc = $('playerScreen');
+  // Breadcrumb
+  $('playerTitle').textContent = `${item.title} (${item.year})`;
+  const breadcrumbHome = $('breadcrumbHome');
+  breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
+  breadcrumbHome.onclick = (e) => {
+    e.preventDefault();
+    closePlayer();
+    if (item.type === 'series') {
+      window.location.href = 'series.html';
+    } else {
+      const section = document.getElementById('latestSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
-    playerSrvs = item.type === 'series'
-      ? [`https://vidsrc.to/embed/tv/${item.id}/1/1`,
-         `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
-         `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`]
-      : [`https://vidsrc.to/embed/movie/${item.id}`,
-         `https://www.2embed.cc/embed/${item.id}`,
-         `https://multiembed.mov/?video_id=${item.id}&tmdb=1`];
+  const screen = $('playerScreen');
 
-    loadServer(0, sc);
+  // Build server URLs
+  currentServers = item.type === 'series'
+    ? [
+        `https://vidsrc.to/embed/tv/${item.id}/1/1`,
+        `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
+        `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
+      ]
+    : [
+        `https://vidsrc.to/embed/movie/${item.id}`,
+        `https://www.2embed.cc/embed/${item.id}`,
+        `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
+      ];
 
-    $$('.source-btn').forEach((btn, i) => {
-      btn.classList.toggle('active', i === 0);
-      btn.onclick = () => {
-        $$('.source-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        loadServer(i, sc);
-      };
-    });
+  // Load default server
+  loadServer(0, screen);
 
-    if ($('playerFullscreen')) $('playerFullscreen').onclick = toggleFullscreen;
-    if ($('playerPip'))        $('playerPip').onclick = () => showToast('📺 Use browser PiP button');
+  // Reset server buttons
+  $$('.source-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.server === '0') btn.classList.add('active');
+    btn.onclick = () => {
+      $$('.source-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadServer(parseInt(btn.dataset.server), screen);
+    };
+  });
 
-    const ov = $('playerOverlay');
-    ov.addEventListener('mousemove', resetUiTimer);
-    ov.addEventListener('touchstart', resetUiTimer);
-    ov.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    resetUiTimer();
-  }
+  // Fullscreen button
+  $('playerFullscreen').onclick = () => toggleFullscreen();
+
+  // Picture in Picture
+  $('playerPip').onclick = () => {
+    showToast('📺 Use the browser PiP button in the address bar');
+  };
+
+  // Auto-hide UI on mouse stop
+  const overlay = $('playerOverlay');
+  overlay.onmousemove = resetUiTimer;
+  overlay.ontouchstart = resetUiTimer;
+
+  // Open player
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  resetUiTimer();
+}
 
   function loadServer(i, sc) {
     const url = playerSrvs[i] || playerSrvs[0];
