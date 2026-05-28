@@ -563,20 +563,17 @@ let uiHideTimer;
 
   // Auto-hide UI
   const overlay = $('playerOverlay');
-  if (overlay) {
-    overlay.onmousemove = resetUiTimer;
-    overlay.ontouchstart = resetUiTimer;
-    overlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    resetUiTimer();
-  }
+if (overlay) {
+  const resetUiTimer = () => {
+    overlay.classList.remove('hide-ui');
+    clearTimeout(uiHideTimer);
+    uiHideTimer = setTimeout(() => {
+    overlay.classList.add('hide-ui');
+    }, 3500);
+  };
+  overlay.onmousemove  = resetUiTimer;
+  overlay.ontouchstart = resetUiTimer;
 }
-
-  function loadServer(i, sc) {
-    const url = playerSrvs[i] || playerSrvs[0];
-    console.log('[Player] Loading URL:', url);
-    sc.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
-  }
 
   function loadServer(index, screen) {
   const url = currentServers[index] || currentServers[0];
@@ -647,7 +644,6 @@ document.addEventListener('fullscreenchange', () => {
     fsBtn.textContent = '⛶ Fullscreen';
   }
 });
-
 
   function closePlayer() {
     $('playerOverlay')?.classList.remove('open', 'hide-ui');
