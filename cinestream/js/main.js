@@ -514,16 +514,16 @@
 
     // Build server URLs
     currentServers = item.type === 'series'
-      ? [
-          `https://vidsrc.to/embed/tv/${item.id}/1/1`,
-          `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
-          `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
-        ]
-      : [
-          `https://vidsrc.to/embed/movie/${item.id}`,
-          `https://www.2embed.cc/embed/${item.id}`,
-          `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
-        ];
+  ? [
+      `https://vidsrc.xyz/embed/tv?tmdb=${item.id}&season=1&episode=1`,
+      `https://vidsrc.to/embed/tv/${item.id}/1/1`,
+      `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
+    ]
+  : [
+      `https://vidsrc.xyz/embed/movie?tmdb=${item.id}`,
+      `https://vidsrc.to/embed/movie/${item.id}`,
+      `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
+    ];
 
     // Load first server
     const screen = $('playerScreen');
