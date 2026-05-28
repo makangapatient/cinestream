@@ -614,6 +614,41 @@ let uiHideTimer;
     }
   });
 
+
+function resetUiTimer() {
+  const overlay = $('playerOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hide-ui');
+  clearTimeout(uiHideTimer);
+  uiHideTimer = setTimeout(() => {
+    overlay.classList.add('hide-ui');
+  }, 3500);
+}
+
+function toggleFullscreen() {
+  const el = $('playerOverlay');
+  if (!el) return;
+  if (!document.fullscreenElement) {
+    el.requestFullscreen().catch(() => {
+      showToast('Fullscreen not supported in this browser');
+    });
+    const fsBtn = $('playerFullscreen');
+    if (fsBtn) fsBtn.textContent = '⊠ Exit Fullscreen';
+  } else {
+    document.exitFullscreen();
+    const fsBtn = $('playerFullscreen');
+    if (fsBtn) fsBtn.textContent = '⛶ Fullscreen';
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const fsBtn = $('playerFullscreen');
+  if (fsBtn && !document.fullscreenElement) {
+    fsBtn.textContent = '⛶ Fullscreen';
+  }
+});
+
+
   function closePlayer() {
     $('playerOverlay')?.classList.remove('open', 'hide-ui');
     if ($('playerScreen')) $('playerScreen').innerHTML = '';
