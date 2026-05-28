@@ -2,6 +2,9 @@
 (function () {
   'use strict';
 
+  let currentServers = [];
+  let uiHideTimer;
+
   /* ─────────────────────────────────────────────────────
      HELPERS
   ───────────────────────────────────────────────────── */
@@ -486,79 +489,87 @@
      PLAYER
   ───────────────────────────────────────────────────── */
   function openPlayer(item) {
-  // Breadcrumb
-  $('playerTitle').textContent = `${item.title} (${item.year})`;
-  const breadcrumbHome = $('breadcrumbHome');
-if (breadcrumbHome) {
-  breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
-  breadcrumbHome.onclick = (e) => {
-    e.preventDefault();
-    closePlayer();
-    if (item.type === 'series') {
-      window.location.href = 'series.html';
-    } else {
-      const section = document.getElementById('latestSection');
-      if (section) section.scrollIntoView({ behavior: 'smooth' });
+  try {
+    // Set title
+    const playerTitle = $('playerTitle');
+    if (playerTitle) {
+      playerTitle.textContent = `${item.title} (${item.year})`;
     }
-  };
-}
-  breadcrumbHome.onclick = (e) => {
-    e.preventDefault();
-    closePlayer();
-    if (item.type === 'series') {
-      window.location.href = 'series.html';
-    } else {
-      const section = document.getElementById('latestSection');
-      if (section) section.scrollIntoView({ behavior: 'smooth' });
+
+    // Breadcrumb — only if element exists
+    const breadcrumbHome = $('breadcrumbHome');
+    if (breadcrumbHome) {
+      breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
+      breadcrumbHome.onclick = (e) => {
+        e.preventDefault();
+        closePlayer();
+        if (item.type === 'series') {
+          window.location.href = 'series.html';
+        } else {
+          const section = document.getElementById('latestSection');
+          if (section) section.scrollIntoView({ behavior: 'smooth' });
+        }
+      };
     }
-  };
 
-  const screen = $('playerScreen');
+    // Build server URLs
+    currentServers = item.type === 'series'
+      ? [
+          `https://vidsrc.to/embed/tv/${item.id}/1/1`,
+          `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
+          `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
+        ]
+      : [
+          `https://vidsrc.to/embed/movie/${item.id}`,
+          `https://www.2embed.cc/embed/${item.id}`,
+          `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
+        ];
 
-  // Build server URLs
-  currentServers = item.type === 'series'
-    ? [
-        `https://vidsrc.to/embed/tv/${item.id}/1/1`,
-        `https://www.2embed.cc/embedtv/${item.id}&s=1&e=1`,
-        `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
-      ]
-    : [
-        `https://vidsrc.to/embed/movie/${item.id}`,
-        `https://www.2embed.cc/embed/${item.id}`,
-        `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
-      ];
+    // Load first server
+    const screen = $('playerScreen');
+    if (screen) loadServer(0, screen);
 
-  // Load default server
-  loadServer(0, screen);
+    // Server buttons
+    $$('.source-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.server === '0') btn.classList.add('active');
+      btn.onclick = () => {
+        $$('.source-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const s = $('playerScreen');
+        if (s) loadServer(parseInt(btn.dataset.server), s);
+      };
+    });
 
-  // Reset server buttons
-  $$('.source-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.dataset.server === '0') btn.classList.add('active');
-    btn.onclick = () => {
-      $$('.source-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      loadServer(parseInt(btn.dataset.server), screen);
-    };
-  });
+    // Fullscreen button
+    const fsBtn = $('playerFullscreen');
+    if (fsBtn) fsBtn.onclick = () => toggleFullscreen();
 
-  // Fullscreen button
-  $('playerFullscreen').onclick = () => toggleFullscreen();
+    // PiP button
+    const pipBtn = $('playerPip');
+    if (pipBtn) pipBtn.onclick = () => showToast('📺 Use browser PiP button in address bar');
 
-  // Picture in Picture
-  $('playerPip').onclick = () => {
-    showToast('📺 Use the browser PiP button in the address bar');
-  };
+    // Auto-hide UI
+    const overlay = $('playerOverlay');
+    if (overlay) {
+      overlay.onmousemove = resetUiTimer;
+      overlay.ontouchstart = resetUiTimer;
 
-  // Auto-hide UI on mouse stop
-  const overlay = $('playerOverlay');
-  overlay.onmousemove = resetUiTimer;
-  overlay.ontouchstart = resetUiTimer;
+      // OPEN THE PLAYER
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      resetUiTimer();
+    }
 
-  // Open player
-  overlay.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  resetUiTimer();
+  } catch(err) {
+    // If anything fails, force open the player anyway
+    console.error('openPlayer error:', err);
+    const overlay = $('playerOverlay');
+    if (overlay) {
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  }
 }
 
   function loadServer(i, sc) {
