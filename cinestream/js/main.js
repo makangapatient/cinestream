@@ -488,7 +488,20 @@
   /* ─────────────────────────────────────────────────────
      PLAYER
   ───────────────────────────────────────────────────── */
- function openPlayer(item) {
+  function openPlayer(item) {
+   console.log('[Player] Opening item:', item);
+   console.log('[Player] Item ID:', item ? item.id : 'NO ITEM');
+
+   if (!item) {
+    showToast('Error: No movie data found.');
+    return;
+   }
+
+   if (!item.id) {
+    showToast('Error: Movie ID missing.');
+    return;
+   }
+
   try {
 
     // Title
@@ -574,6 +587,7 @@
 
   function loadServer(i, sc) {
     const url = playerSrvs[i] || playerSrvs[0];
+    console.log('[Player] Loading URL:', url);
     sc.innerHTML = `<iframe src="${url}" allowfullscreen allow="autoplay;fullscreen;picture-in-picture" style="width:100%;height:100%;border:none"></iframe>`;
   }
 
