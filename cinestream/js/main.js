@@ -367,7 +367,6 @@ let uiHideTimer;
     const id = item.id;
 
     // Title
-    // Title
 const titleEl = $('playerTitle');
 if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
 
