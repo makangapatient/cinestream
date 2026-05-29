@@ -367,24 +367,40 @@ let uiHideTimer;
     const id = item.id;
 
     // Title
-    const playerTitle = $('playerTitle');
-    if (playerTitle) playerTitle.textContent = `${item.title} (${item.year})`;
+    // Title
+const titleEl = $('playerTitle');
+if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
 
-    // Breadcrumb
-    const breadcrumbHome = $('breadcrumbHome');
-    if (breadcrumbHome) {
-      breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
-      breadcrumbHome.onclick = (e) => {
-        e.preventDefault();
-        closePlayer();
-        if (item.type === 'series') {
-          window.location.href = 'series.html';
-        } else {
-          const s = document.getElementById('latestSection');
-          if (s) s.scrollIntoView({ behavior: 'smooth' });
-        }
-      };
+// Breadcrumb type label
+const breadcrumbTypeEl = $('breadcrumbType');
+if (breadcrumbTypeEl) {
+  breadcrumbTypeEl.textContent = item.type === 'series'
+    ? '📺 TV Series'
+    : '🎬 Movies';
+
+  breadcrumbTypeEl.onclick = (e) => {
+    e.preventDefault();
+    closePlayer();
+    if (item.type === 'series') {
+      document.getElementById('seriesGrid')
+        ?.closest('.section')
+        ?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      document.getElementById('latestSection')
+        ?.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+}
+
+// Breadcrumb home
+const breadcrumbHomeEl = $('breadcrumbHome');
+if (breadcrumbHomeEl) {
+  breadcrumbHomeEl.onclick = (e) => {
+    e.preventDefault();
+    closePlayer();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+}
 
     // Build server list — 6 servers for maximum coverage
     if (item.type === 'series') {
