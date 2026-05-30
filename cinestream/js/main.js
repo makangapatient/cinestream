@@ -342,12 +342,11 @@ let uiHideTimer;
   iframe.src = url;
   iframe.style.cssText = 'width:100%;height:100%;border:none;display:block';
 
-  // Required permissions — NO sandbox attribute
-  iframe.setAttribute('allowfullscreen', '');
-  iframe.setAttribute('allow',
-    'autoplay; fullscreen; picture-in-picture; ' +
-    'encrypted-media; gyroscope; accelerometer; clipboard-write'
-  );
+  // Use ONLY 'allow' — not both allow and allowfullscreen
+iframe.setAttribute('allow',
+  'autoplay; fullscreen; picture-in-picture; ' +
+  'encrypted-media; gyroscope; accelerometer'
+);
   iframe.setAttribute('referrerpolicy', 'no-referrer');
 
   // Show error message if iframe fails to load
@@ -361,6 +360,21 @@ let uiHideTimer;
   };
 
   screen.appendChild(iframe);
+  }
+  
+/* ====================================================
+   UI TIMER — auto-hide player controls
+==================================================== */
+let uiHideTimer;
+
+function resetUiTimer() {
+  const overlay = $('playerOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hide-ui');
+  clearTimeout(uiHideTimer);
+  uiHideTimer = setTimeout(() => {
+    overlay.classList.add('hide-ui');
+  }, 3500);
 }
 
   /* ====================================================
@@ -370,12 +384,12 @@ let uiHideTimer;
    const id = item.id;
    const type = item.type;
 
-  // Title
-  const titleEl = $('playerTitle');
-  if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
+     // Title
+   const titleEl = $('playerTitle');
+   if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
 
-  // Working embed servers (updated list)
-  if (type === 'series') {
+     // Working embed servers (updated list)
+   if (type === 'series') {
     currentServers = [
       `https://vidsrc.to/embed/tv/${id}/1/1`,
       `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=1&episode=1`,
@@ -383,7 +397,7 @@ let uiHideTimer;
       `https://embed.su/embed/tv/${id}/1/1`,
       `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=1`,
     ];
-  } else {
+   } else {
     currentServers = [
       `https://vidsrc.to/embed/movie/${id}`,
       `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
@@ -391,31 +405,31 @@ let uiHideTimer;
       `https://embed.su/embed/movie/${id}`,
       `https://multiembed.mov/?video_id=${id}&tmdb=1`,
     ];
-  }
+   }
 
-  console.log('[Player] Servers:', currentServers);
+   console.log('[Player] Servers:', currentServers);
 
-  const screen = $('playerScreen');
-  loadServer(0, screen);
+   const screen = $('playerScreen');
+   loadServer(0, screen);
 
-  // Update server button labels
-  const serverNames = ['vidsrc.to', 'vidsrc.xyz', 'autoembed', 'embed.su', 'multiembed'];
-  $$('.source-btn').forEach((btn, i) => {
+   // Update server button labels
+   const serverNames = ['vidsrc.to', 'vidsrc.xyz', 'autoembed', 'embed.su', 'multiembed'];
+   $$('.source-btn').forEach((btn, i) => {
     btn.textContent = serverNames[i] || `Server ${i + 1}`;
     btn.classList.toggle('active', i === 0);
     btn.onclick = () => {
       $$('.source-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       loadServer(i, screen);
-    };
-  });
+     };
+    });
 
-  // Breadcrumb
-  const titleElBC = $('playerTitle');
-  if (titleElBC) titleElBC.textContent = `${item.title} (${item.year})`;
+      // Breadcrumb
+    const titleElBC = $('playerTitle');
+    if (titleElBC) titleElBC.textContent = `${item.title} (${item.year})`;
 
-  const breadcrumbTypeEl = $('breadcrumbType');
-  if (breadcrumbTypeEl) {
+    const breadcrumbTypeEl = $('breadcrumbType');
+   if (breadcrumbTypeEl) {
     breadcrumbTypeEl.textContent = type === 'series' ? '📺 TV Series' : '🎬 Movies';
     breadcrumbTypeEl.onclick = (e) => {
       e.preventDefault();
@@ -424,29 +438,29 @@ let uiHideTimer;
         ? document.getElementById('seriesGrid')?.closest('.section')
         : document.getElementById('latestSection');
       section?.scrollIntoView({ behavior: 'smooth' });
-    };
-  }
+     };
+   }
 
-  const breadcrumbHomeEl = $('breadcrumbHome');
-  if (breadcrumbHomeEl) {
+   const breadcrumbHomeEl = $('breadcrumbHome');
+   if (breadcrumbHomeEl) {
     breadcrumbHomeEl.onclick = (e) => {
       e.preventDefault();
       closePlayer();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-  }
+   }
 
-  // Fullscreen
-  $('playerFullscreen').onclick = () => toggleFullscreen();
+     // Fullscreen
+   $('playerFullscreen').onclick = () => toggleFullscreen();
 
-  // Auto-hide UI
-  const overlay = $('playerOverlay');
-  overlay.addEventListener('mousemove', resetUiTimer);
-  overlay.addEventListener('touchstart', resetUiTimer);
+    // Auto-hide UI
+   const overlay = $('playerOverlay');
+   overlay.addEventListener('mousemove', resetUiTimer);
+   overlay.addEventListener('touchstart', resetUiTimer);
 
-  overlay.classList.add('open');
-  document.body.style.overflow = 'hidden';
-  resetUiTimer();
+   overlay.classList.add('open');
+   document.body.style.overflow = 'hidden';
+   resetUiTimer();
 }
 
   /* ====================================================
