@@ -332,157 +332,122 @@ let uiHideTimer;
      PLAYER — loadServer
   ==================================================== */
   function loadServer(index, screen) {
-    const url = currentServers[index] || currentServers[0];
-    console.log('[Player] Loading URL:', url);
-    if (!url || url.includes('undefined')) {
-      screen.innerHTML = `
-        <div class="player-placeholder">
-          <div class="player-logo">▶</div>
-          <p style="color:#fff;font-size:16px;margin-bottom:8px">Not available on this server</p>
-          <p style="color:#7a7a90;font-size:13px">Try another server below</p>
-        </div>`;
-      return;
-    }
+  const url = currentServers[index] || currentServers[0];
+  console.log('[Player] Loading URL:', url);
+
+  // Remove old iframe first
+  screen.innerHTML = '';
+
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.style.cssText = 'width:100%;height:100%;border:none;display:block';
+
+  // Required permissions — NO sandbox attribute
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('allow',
+    'autoplay; fullscreen; picture-in-picture; ' +
+    'encrypted-media; gyroscope; accelerometer; clipboard-write'
+  );
+  iframe.setAttribute('referrerpolicy', 'no-referrer');
+
+  // Show error message if iframe fails to load
+  iframe.onerror = () => {
     screen.innerHTML = `
-      <iframe
-        src="${url}"
-        allowfullscreen
-        allow="autoplay; fullscreen; picture-in-picture"
-        style="width:100%;height:100%;border:none"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation">
-      </iframe>`;
-  }
+      <div class="player-placeholder">
+        <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+        <p style="color:#fff;font-size:16px;margin-bottom:8px">Server unavailable</p>
+        <p style="color:#7a7a90;font-size:13px">Try another server below</p>
+      </div>`;
+  };
+
+  screen.appendChild(iframe);
+}
 
   /* ====================================================
      PLAYER — openPlayer
   ==================================================== */
   function openPlayer(item) {
-    console.log('[Player] Opening:', item ? item.title : 'none', '| ID:', item ? item.id : 'none');
+   const id = item.id;
+   const type = item.type;
 
-    if (!item || !item.id) {
-      showToast('Error: Movie data missing.');
-      return;
-    }
+  // Title
+  const titleEl = $('playerTitle');
+  if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
 
-    const id = item.id;
-
-    // Title
-const titleEl = $('playerTitle');
-if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
-
-// Breadcrumb type label
-const breadcrumbTypeEl = $('breadcrumbType');
-if (breadcrumbTypeEl) {
-  breadcrumbTypeEl.textContent = item.type === 'series'
-    ? '📺 TV Series'
-    : '🎬 Movies';
-
-  breadcrumbTypeEl.onclick = (e) => {
-    e.preventDefault();
-    closePlayer();
-    if (item.type === 'series') {
-      document.getElementById('seriesGrid')
-        ?.closest('.section')
-        ?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      document.getElementById('latestSection')
-        ?.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-}
-
-// Breadcrumb home
-const breadcrumbHomeEl = $('breadcrumbHome');
-if (breadcrumbHomeEl) {
-  breadcrumbHomeEl.onclick = (e) => {
-    e.preventDefault();
-    closePlayer();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-}
-
-    // Build server list — 6 servers for maximum coverage
-    if (item.type === 'series') {
-      currentServers = [
-        `https://vidsrc.cc/v2/embed/tv/${id}/1/1`,
-        `https://embed.su/embed/tv/${id}/1/1`,
-        `https://autoembed.co/tv/tmdb/${id}-1-1`,
-        `https://player.videasy.net/tv/${id}/1/1`,
-        `https://vidsrc.me/embed/tv?tmdb=${id}&season=1&episode=1`,
-        `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=1`,
-      ];
-    } else {
-      currentServers = [
-        `https://vidsrc.cc/v2/embed/movie/${id}`,
-        `https://embed.su/embed/movie/${id}`,
-        `https://autoembed.co/movie/tmdb/${id}`,
-        `https://player.videasy.net/movie/${id}`,
-        `https://vidsrc.me/embed/movie?tmdb=${id}`,
-        `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-      ];
-    }
-
-    console.log('[Player] Servers:', currentServers);
-
-    // Load first available server
-    const screen = $('playerScreen');
-    if (screen) loadServer(0, screen);
-
-    // Update server button labels
-    const serverLabels = ['vidsrc.cc', 'embed.su', 'autoembed', 'videasy', 'vidsrc.me', 'multiembed'];
-    $$('.source-btn').forEach((btn, i) => {
-      btn.classList.remove('active');
-      if (i === 0) btn.classList.add('active');
-      if (serverLabels[i]) btn.textContent = serverLabels[i];
-      btn.dataset.server = String(i);
-      btn.onclick = () => {
-        $$('.source-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const s = $('playerScreen');
-        if (s) loadServer(i, s);
-      };
-    });
-
-    // Fullscreen button
-    const fsBtn = $('playerFullscreen');
-    if (fsBtn) {
-      fsBtn.textContent = '⛶ Fullscreen';
-      fsBtn.onclick = () => {
-        const el = $('playerOverlay');
-        if (!document.fullscreenElement) {
-          el.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
-          fsBtn.textContent = '⊠ Exit Fullscreen';
-        } else {
-          document.exitFullscreen();
-          fsBtn.textContent = '⛶ Fullscreen';
-        }
-      };
-    }
-
-    document.addEventListener('fullscreenchange', () => {
-      const f = $('playerFullscreen');
-      if (f && !document.fullscreenElement) f.textContent = '⛶ Fullscreen';
-    }, { once: true });
-
-    // PiP button
-    const pipBtn = $('playerPip');
-    if (pipBtn) pipBtn.onclick = () => showToast('📺 Use browser PiP button in address bar');
-
-    // Auto-hide UI
-    const overlay = $('playerOverlay');
-    if (overlay) {
-      const resetUiTimer = () => {
-        overlay.classList.remove('hide-ui');
-        clearTimeout(uiHideTimer);
-        uiHideTimer = setTimeout(() => overlay.classList.add('hide-ui'), 4000);
-      };
-      overlay.onmousemove  = resetUiTimer;
-      overlay.ontouchstart = resetUiTimer;
-      overlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-      resetUiTimer();
-    }
+  // Working embed servers (updated list)
+  if (type === 'series') {
+    currentServers = [
+      `https://vidsrc.to/embed/tv/${id}/1/1`,
+      `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=1&episode=1`,
+      `https://autoembed.co/tv/tmdb/${id}-1-1`,
+      `https://embed.su/embed/tv/${id}/1/1`,
+      `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=1`,
+    ];
+  } else {
+    currentServers = [
+      `https://vidsrc.to/embed/movie/${id}`,
+      `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
+      `https://autoembed.co/movie/tmdb/${id}`,
+      `https://embed.su/embed/movie/${id}`,
+      `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+    ];
   }
+
+  console.log('[Player] Servers:', currentServers);
+
+  const screen = $('playerScreen');
+  loadServer(0, screen);
+
+  // Update server button labels
+  const serverNames = ['vidsrc.to', 'vidsrc.xyz', 'autoembed', 'embed.su', 'multiembed'];
+  $$('.source-btn').forEach((btn, i) => {
+    btn.textContent = serverNames[i] || `Server ${i + 1}`;
+    btn.classList.toggle('active', i === 0);
+    btn.onclick = () => {
+      $$('.source-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadServer(i, screen);
+    };
+  });
+
+  // Breadcrumb
+  const titleElBC = $('playerTitle');
+  if (titleElBC) titleElBC.textContent = `${item.title} (${item.year})`;
+
+  const breadcrumbTypeEl = $('breadcrumbType');
+  if (breadcrumbTypeEl) {
+    breadcrumbTypeEl.textContent = type === 'series' ? '📺 TV Series' : '🎬 Movies';
+    breadcrumbTypeEl.onclick = (e) => {
+      e.preventDefault();
+      closePlayer();
+      const section = type === 'series'
+        ? document.getElementById('seriesGrid')?.closest('.section')
+        : document.getElementById('latestSection');
+      section?.scrollIntoView({ behavior: 'smooth' });
+    };
+  }
+
+  const breadcrumbHomeEl = $('breadcrumbHome');
+  if (breadcrumbHomeEl) {
+    breadcrumbHomeEl.onclick = (e) => {
+      e.preventDefault();
+      closePlayer();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+  }
+
+  // Fullscreen
+  $('playerFullscreen').onclick = () => toggleFullscreen();
+
+  // Auto-hide UI
+  const overlay = $('playerOverlay');
+  overlay.addEventListener('mousemove', resetUiTimer);
+  overlay.addEventListener('touchstart', resetUiTimer);
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  resetUiTimer();
+}
 
   /* ====================================================
      PLAYER — closePlayer
@@ -567,5 +532,9 @@ if (breadcrumbHomeEl) {
 
   document.addEventListener('dataReady', boot);
   if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) boot();
+
+  // Auto-update copyright year
+  const yearEl = document.getElementById('footerYear');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
 
 }());
