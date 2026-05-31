@@ -206,50 +206,78 @@ let uiHideTimer;
   const searchInput    = $('searchInput');
   const searchDropdown = $('searchDropdown');
 
-  searchInput.addEventListener('input', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
-    const results = ALL_CONTENT.filter(m =>
-      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
-    ).slice(0, 8);
-    searchDropdown.innerHTML = results.length
-      ? results.map(m => `
-          <div class="search-result-item" data-id="${m.id}">
-            <img src="${m.poster}" alt="${m.title}" onerror="this.src=''">
-            <div class="search-result-info">
-              <strong>${m.title}</strong>
-              <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
-            </div>
-          </div>`).join('')
-      : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
-    searchDropdown.classList.add('open');
-    searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-        if (item) { openModal(item); searchDropdown.classList.remove('open'); searchInput.value = ''; }
-      });
+  searchInput.addEventListener('input', async () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (q.length < 2) {
+    searchDropdown.classList.remove('open');
+    return;
+  }
+
+  // First search local data
+  let results = ALL_CONTENT.filter(m =>
+    m.title.toLowerCase().includes(q) ||
+    m.genre.toLowerCase().includes(q) ||
+    (m.cast && m.cast.toLowerCase().includes(q))
+  ).slice(0, 5);
+
+  // If fewer than 3 local results, also search TMDB live
+  if (results.length < 3) {
+    const liveResults = await searchTMDB(q);
+    // Add live results not already in local list
+    liveResults.forEach(r => {
+      if (!results.find(x => x.id === r.id)) {
+        results.push(r);
+      }
+    });
+  }
+
+  results = results.slice(0, 8);
+
+  searchDropdown.innerHTML = results.length
+    ? results.map(m => `
+        <div class="search-result-item" data-id="${m.id}"
+             data-live="${!ALL_CONTENT.find(x => x.id === m.id)}">
+          <img src="${m.poster}" alt="${m.title}"
+               onerror="this.style.display='none'">
+          <div class="search-result-info">
+            <strong>${m.title}</strong>
+            <span>⭐ ${m.rating} · ${m.year} · ${m.genre}
+              ${!ALL_CONTENT.find(x => x.id === m.id)
+                ? '<span style="color:var(--primary);font-weight:600"> NEW</span>'
+                : ''}
+            </span>
+          </div>
+        </div>`).join('')
+    : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
+
+  searchDropdown.classList.add('open');
+
+  searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+    el.addEventListener('click', () => {
+      // Check if it's a live result not in local data
+      const isLive = el.dataset.live === 'true';
+      let item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
+
+      if (!item && isLive) {
+        // Add to local data so modal works
+        item = results.find(m => m.id === parseInt(el.dataset.id));
+        if (item) {
+          ALL_CONTENT.push(item);
+          MOVIES.push(item);
+        }
+      }
+
+      if (item) {
+        openModal(item);
+        searchDropdown.classList.remove('open');
+        searchInput.value = '';
+      }
     });
   });
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
-  });
-
-  $('searchBtn').addEventListener('click', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (!q) return;
-    const filtered = ALL_CONTENT.filter(m =>
-      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
-    );
-    renderGrid('latestGrid', filtered.length ? filtered : ALL_CONTENT, 24);
-    searchDropdown.classList.remove('open');
-    scrollToLatest();
-  });
-
-  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
-
+});
+   
   /* ====================================================
-     MODAL
+     OPEN MODAL
   ==================================================== */
   function openModal(item) {
     $('modalBackdrop').src      = item.backdrop || item.poster;
