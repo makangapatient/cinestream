@@ -386,7 +386,14 @@ function resetUiTimer() {
 
      // Title
    const titleEl = $('playerTitle');
-   if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
+    if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
+    
+      // Breadcrumb click → close player and go back
+   document.getElementById('breadcrumbHome').onclick = (e) => {
+      e.preventDefault();
+      closePlayer();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
      // Working embed servers (updated list)
    if (type === 'series') {

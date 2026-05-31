@@ -411,3 +411,40 @@ img{display:block}
     padding: 3px 8px;
   }
 }
+/* Breadcrumb */
+.player-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.breadcrumb-home {
+  color: rgba(255, 255, 255, .6);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color var(--transition);
+  text-decoration: none;
+}
+
+.breadcrumb-home:hover {
+  color: var(--primary);
+}
+
+.breadcrumb-sep {
+  color: rgba(255, 255, 255, .3);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.player-title {
+  font-family: var(--font-head);
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
