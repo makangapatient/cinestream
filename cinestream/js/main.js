@@ -206,78 +206,50 @@ let uiHideTimer;
   const searchInput    = $('searchInput');
   const searchDropdown = $('searchDropdown');
 
-  searchInput.addEventListener('input', async () => {
-  const q = searchInput.value.trim().toLowerCase();
-  if (q.length < 2) {
-    searchDropdown.classList.remove('open');
-    return;
-  }
-
-  // First search local data
-  let results = ALL_CONTENT.filter(m =>
-    m.title.toLowerCase().includes(q) ||
-    m.genre.toLowerCase().includes(q) ||
-    (m.cast && m.cast.toLowerCase().includes(q))
-  ).slice(0, 5);
-
-  // If fewer than 3 local results, also search TMDB live
-  if (results.length < 3) {
-    const liveResults = await searchTMDB(q);
-    // Add live results not already in local list
-    liveResults.forEach(r => {
-      if (!results.find(x => x.id === r.id)) {
-        results.push(r);
-      }
-    });
-  }
-
-  results = results.slice(0, 8);
-
-  searchDropdown.innerHTML = results.length
-    ? results.map(m => `
-        <div class="search-result-item" data-id="${m.id}"
-             data-live="${!ALL_CONTENT.find(x => x.id === m.id)}">
-          <img src="${m.poster}" alt="${m.title}"
-               onerror="this.style.display='none'">
-          <div class="search-result-info">
-            <strong>${m.title}</strong>
-            <span>⭐ ${m.rating} · ${m.year} · ${m.genre}
-              ${!ALL_CONTENT.find(x => x.id === m.id)
-                ? '<span style="color:var(--primary);font-weight:600"> NEW</span>'
-                : ''}
-            </span>
-          </div>
-        </div>`).join('')
-    : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
-
-  searchDropdown.classList.add('open');
-
-  searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
-    el.addEventListener('click', () => {
-      // Check if it's a live result not in local data
-      const isLive = el.dataset.live === 'true';
-      let item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-
-      if (!item && isLive) {
-        // Add to local data so modal works
-        item = results.find(m => m.id === parseInt(el.dataset.id));
-        if (item) {
-          ALL_CONTENT.push(item);
-          MOVIES.push(item);
-        }
-      }
-
-      if (item) {
-        openModal(item);
-        searchDropdown.classList.remove('open');
-        searchInput.value = '';
-      }
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
+    const results = ALL_CONTENT.filter(m =>
+      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
+    ).slice(0, 8);
+    searchDropdown.innerHTML = results.length
+      ? results.map(m => `
+          <div class="search-result-item" data-id="${m.id}">
+            <img src="${m.poster}" alt="${m.title}" onerror="this.src=''">
+            <div class="search-result-info">
+              <strong>${m.title}</strong>
+              <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
+            </div>
+          </div>`).join('')
+      : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
+    searchDropdown.classList.add('open');
+    searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
+        if (item) { openModal(item); searchDropdown.classList.remove('open'); searchInput.value = ''; }
+      });
     });
   });
-});
-   
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
+  });
+
+  $('searchBtn').addEventListener('click', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) return;
+    const filtered = ALL_CONTENT.filter(m =>
+      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
+    );
+    renderGrid('latestGrid', filtered.length ? filtered : ALL_CONTENT, 24);
+    searchDropdown.classList.remove('open');
+    scrollToLatest();
+  });
+
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
+
   /* ====================================================
-     OPEN MODAL
+     MODAL
   ==================================================== */
   function openModal(item) {
     $('modalBackdrop').src      = item.backdrop || item.poster;
@@ -360,141 +332,142 @@ let uiHideTimer;
      PLAYER — loadServer
   ==================================================== */
   function loadServer(index, screen) {
-  const url = currentServers[index] || currentServers[0];
-  console.log('[Player] Loading URL:', url);
-
-  // Remove old iframe first
-  screen.innerHTML = '';
-
-  const iframe = document.createElement('iframe');
-  iframe.src = url;
-  iframe.style.cssText = 'width:100%;height:100%;border:none;display:block';
-
-  // Use ONLY 'allow' — not both allow and allowfullscreen
-iframe.setAttribute('allow',
-  'autoplay; fullscreen; picture-in-picture; ' +
-  'encrypted-media; gyroscope; accelerometer'
-);
-  iframe.setAttribute('referrerpolicy', 'no-referrer');
-
-  // Show error message if iframe fails to load
-  iframe.onerror = () => {
+    const url = currentServers[index] || currentServers[0];
+    console.log('[Player] Loading URL:', url);
+    if (!url || url.includes('undefined')) {
+      screen.innerHTML = `
+        <div class="player-placeholder">
+          <div class="player-logo">▶</div>
+          <p style="color:#fff;font-size:16px;margin-bottom:8px">Not available on this server</p>
+          <p style="color:#7a7a90;font-size:13px">Try another server below</p>
+        </div>`;
+      return;
+    }
     screen.innerHTML = `
-      <div class="player-placeholder">
-        <div style="font-size:48px;margin-bottom:12px">⚠️</div>
-        <p style="color:#fff;font-size:16px;margin-bottom:8px">Server unavailable</p>
-        <p style="color:#7a7a90;font-size:13px">Try another server below</p>
-      </div>`;
-  };
-
-  screen.appendChild(iframe);
+      <iframe
+        src="${url}"
+        allowfullscreen
+        allow="autoplay; fullscreen; picture-in-picture"
+        style="width:100%;height:100%;border:none"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation">
+      </iframe>`;
   }
-  
-/* ====================================================
-   UI TIMER — auto-hide player controls
-==================================================== */
-let uiHideTimer;
-
-function resetUiTimer() {
-  const overlay = $('playerOverlay');
-  if (!overlay) return;
-  overlay.classList.remove('hide-ui');
-  clearTimeout(uiHideTimer);
-  uiHideTimer = setTimeout(() => {
-    overlay.classList.add('hide-ui');
-  }, 3500);
-}
 
   /* ====================================================
      PLAYER — openPlayer
   ==================================================== */
   function openPlayer(item) {
-   const id = item.id;
-   const type = item.type;
+    console.log('[Player] Opening:', item ? item.title : 'none', '| ID:', item ? item.id : 'none');
 
-     // Title
-   const titleEl = $('playerTitle');
-    if (titleEl) titleEl.textContent = `${item.title} (${item.year})`;
-    
-      // Breadcrumb click → close player and go back
-   document.getElementById('breadcrumbHome').onclick = (e) => {
-      e.preventDefault();
-      closePlayer();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+    if (!item || !item.id) {
+      showToast('Error: Movie data missing.');
+      return;
+    }
 
-     // Working embed servers (updated list)
-    currentServers = item.type === 'series'
-  ? [
-      `https://vidsrc.to/embed/tv/${item.id}/1/1`,
-      `https://vidsrc.xyz/embed/tv/${item.id}/1-1`,
-      `https://player.autoembed.cc/embed/tv/${item.id}/1/1`,
-      `https://embed.su/embed/tv/${item.id}/1/1`,
-      `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
-    ]
-  : [
-      `https://vidsrc.to/embed/movie/${item.id}`,
-      `https://vidsrc.xyz/embed/movie/${item.id}`,
-      `https://player.autoembed.cc/embed/movie/${item.id}`,
-      `https://embed.su/embed/movie/${item.id}`,
-      `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
-    ];
+    const id = item.id;
 
-   console.log('[Player] Servers:', currentServers);
+    // Title
+    const playerTitle = $('playerTitle');
+    if (playerTitle) playerTitle.textContent = `${item.title} (${item.year})`;
 
-   const screen = $('playerScreen');
-   loadServer(0, screen);
+    // Breadcrumb
+    const breadcrumbHome = $('breadcrumbHome');
+    if (breadcrumbHome) {
+      breadcrumbHome.textContent = item.type === 'series' ? 'TV Series' : 'Movies';
+      breadcrumbHome.onclick = (e) => {
+        e.preventDefault();
+        closePlayer();
+        if (item.type === 'series') {
+          window.location.href = 'series.html';
+        } else {
+          const s = document.getElementById('latestSection');
+          if (s) s.scrollIntoView({ behavior: 'smooth' });
+        }
+      };
+    }
 
-   // Update server button labels
-   const serverNames = ['vidsrc.to', 'vidsrc.xyz', 'autoembed', 'embed.su', 'multiembed'];
-   $$('.source-btn').forEach((btn, i) => {
-    btn.textContent = serverNames[i] || `Server ${i + 1}`;
-    btn.classList.toggle('active', i === 0);
-    btn.onclick = () => {
-      $$('.source-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      loadServer(i, screen);
-     };
+    // Build server list — 6 servers for maximum coverage
+    if (item.type === 'series') {
+      currentServers = [
+        `https://vidsrc.cc/v2/embed/tv/${id}/1/1`,
+        `https://embed.su/embed/tv/${id}/1/1`,
+        `https://autoembed.co/tv/tmdb/${id}-1-1`,
+        `https://player.videasy.net/tv/${id}/1/1`,
+        `https://vidsrc.me/embed/tv?tmdb=${id}&season=1&episode=1`,
+        `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=1`,
+      ];
+    } else {
+      currentServers = [
+        `https://vidsrc.cc/v2/embed/movie/${id}`,
+        `https://embed.su/embed/movie/${id}`,
+        `https://autoembed.co/movie/tmdb/${id}`,
+        `https://player.videasy.net/movie/${id}`,
+        `https://vidsrc.me/embed/movie?tmdb=${id}`,
+        `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+      ];
+    }
+
+    console.log('[Player] Servers:', currentServers);
+
+    // Load first available server
+    const screen = $('playerScreen');
+    if (screen) loadServer(0, screen);
+
+    // Update server button labels
+    const serverLabels = ['vidsrc.cc', 'embed.su', 'autoembed', 'videasy', 'vidsrc.me', 'multiembed'];
+    $$('.source-btn').forEach((btn, i) => {
+      btn.classList.remove('active');
+      if (i === 0) btn.classList.add('active');
+      if (serverLabels[i]) btn.textContent = serverLabels[i];
+      btn.dataset.server = String(i);
+      btn.onclick = () => {
+        $$('.source-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const s = $('playerScreen');
+        if (s) loadServer(i, s);
+      };
     });
 
-      // Breadcrumb
-    const titleElBC = $('playerTitle');
-    if (titleElBC) titleElBC.textContent = `${item.title} (${item.year})`;
+    // Fullscreen button
+    const fsBtn = $('playerFullscreen');
+    if (fsBtn) {
+      fsBtn.textContent = '⛶ Fullscreen';
+      fsBtn.onclick = () => {
+        const el = $('playerOverlay');
+        if (!document.fullscreenElement) {
+          el.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
+          fsBtn.textContent = '⊠ Exit Fullscreen';
+        } else {
+          document.exitFullscreen();
+          fsBtn.textContent = '⛶ Fullscreen';
+        }
+      };
+    }
 
-    const breadcrumbTypeEl = $('breadcrumbType');
-   if (breadcrumbTypeEl) {
-    breadcrumbTypeEl.textContent = type === 'series' ? '📺 TV Series' : '🎬 Movies';
-    breadcrumbTypeEl.onclick = (e) => {
-      e.preventDefault();
-      closePlayer();
-      const section = type === 'series'
-        ? document.getElementById('seriesGrid')?.closest('.section')
-        : document.getElementById('latestSection');
-      section?.scrollIntoView({ behavior: 'smooth' });
-     };
-   }
+    document.addEventListener('fullscreenchange', () => {
+      const f = $('playerFullscreen');
+      if (f && !document.fullscreenElement) f.textContent = '⛶ Fullscreen';
+    }, { once: true });
 
-   const breadcrumbHomeEl = $('breadcrumbHome');
-   if (breadcrumbHomeEl) {
-    breadcrumbHomeEl.onclick = (e) => {
-      e.preventDefault();
-      closePlayer();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-   }
-
-     // Fullscreen
-   $('playerFullscreen').onclick = () => toggleFullscreen();
+    // PiP button
+    const pipBtn = $('playerPip');
+    if (pipBtn) pipBtn.onclick = () => showToast('📺 Use browser PiP button in address bar');
 
     // Auto-hide UI
-   const overlay = $('playerOverlay');
-   overlay.addEventListener('mousemove', resetUiTimer);
-   overlay.addEventListener('touchstart', resetUiTimer);
-
-   overlay.classList.add('open');
-   document.body.style.overflow = 'hidden';
-   resetUiTimer();
-}
+    const overlay = $('playerOverlay');
+    if (overlay) {
+      const resetUiTimer = () => {
+        overlay.classList.remove('hide-ui');
+        clearTimeout(uiHideTimer);
+        uiHideTimer = setTimeout(() => overlay.classList.add('hide-ui'), 4000);
+      };
+      overlay.onmousemove  = resetUiTimer;
+      overlay.ontouchstart = resetUiTimer;
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      resetUiTimer();
+    }
+  }
 
   /* ====================================================
      PLAYER — closePlayer
@@ -580,8 +553,170 @@ function resetUiTimer() {
   document.addEventListener('dataReady', boot);
   if (typeof ALL_CONTENT !== 'undefined' && ALL_CONTENT.length) boot();
 
-  // Auto-update copyright year
-  const yearEl = document.getElementById('footerYear');
-  if (yearEl) yearEl.textContent = new Date().getFullYear();
-
 }());
+
+/* ====================================================
+   WATCHLIST NAV COUNT
+==================================================== */
+function updateWatchlistCount() {
+  const wl    = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+  const count = document.getElementById('wlCount');
+  if (count) count.textContent = wl.length;
+}
+updateWatchlistCount();
+
+// Watchlist nav click — show modal list
+const navWl = document.getElementById('navWatchlist');
+if (navWl) {
+  navWl.addEventListener('click', () => {
+    const wl      = JSON.parse(localStorage.getItem('cs_watchlist') || '[]');
+    const items   = ALL_CONTENT.filter(m => wl.includes(m.id));
+
+    if (!items.length) {
+      showToast('Your watchlist is empty. Add movies by clicking + Watchlist');
+      return;
+    }
+
+    // Render watchlist as a mini overlay
+    let html = `
+      <div id="wlOverlay" style="
+        position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:5000;
+        display:flex;align-items:center;justify-content:center;padding:20px;
+        backdrop-filter:blur(6px)">
+        <div style="background:#16161f;border-radius:16px;max-width:700px;width:100%;
+          max-height:80vh;overflow-y:auto;padding:24px;border:1px solid rgba(255,255,255,.08)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h2 style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1.5px;color:#fff">❤️ MY WATCHLIST</h2>
+            <button onclick="document.getElementById('wlOverlay').remove()"
+              style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);
+              color:#fff;font-size:16px;border:none;cursor:pointer;display:flex;
+              align-items:center;justify-content:center">✕</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px">
+            ${items.map(m => `
+              <div style="cursor:pointer;border-radius:8px;overflow:hidden;position:relative"
+                data-wlid="${m.id}">
+                <img src="${m.poster}" style="width:100%;aspect-ratio:2/3;object-fit:cover;display:block"
+                  onerror="this.style.background='#1a1a24'">
+                <div style="position:absolute;bottom:0;left:0;right:0;padding:6px;
+                  background:linear-gradient(transparent,rgba(0,0,0,.9));
+                  font-size:11px;font-weight:600;color:#fff">${m.title}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.querySelectorAll('[data-wlid]').forEach(el => {
+      el.addEventListener('click', () => {
+        const item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.wlid));
+        if (item) {
+          document.getElementById('wlOverlay')?.remove();
+          openModal(item);
+        }
+      });
+    });
+    document.getElementById('wlOverlay').addEventListener('click', e => {
+      if (e.target.id === 'wlOverlay') e.target.remove();
+    });
+  });
+}
+
+/* ====================================================
+   INDEX PAGE — PAGINATION FOR SECTIONS
+==================================================== */
+(function initIndexPagination() {
+  // Only run on index page
+  if (!document.getElementById('latestSection')) return;
+
+  const PER_PAGE = 20;
+  let indexPage  = 1;
+  let indexItems = [];
+
+  // Patch renderGrid to support pagination
+  const origRenderGrid = window.renderGrid;
+  if (typeof origRenderGrid === 'function') {
+    window.renderGrid = function(gridId, items, limit) {
+      if (gridId === 'latestGrid') {
+        indexItems = items;
+        indexPage  = 1;
+        renderIndexGrid(1);
+        return;
+      }
+      origRenderGrid(gridId, items, limit || 10);
+    };
+  }
+
+  function renderIndexGrid(page) {
+    indexPage = page;
+    const grid  = document.getElementById('latestGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const start = (page-1) * PER_PAGE;
+    const slice = indexItems.slice(start, start + PER_PAGE);
+    slice.forEach(item => {
+      if (typeof buildCard === 'function') grid.appendChild(buildCard(item));
+    });
+    buildIndexPagination(page, Math.ceil(indexItems.length / PER_PAGE));
+  }
+
+  function buildIndexPagination(current, total) {
+    // Remove old pagination
+    const old = document.getElementById('indexPagination');
+    if (old) old.remove();
+    if (total <= 1) return;
+
+    const section = document.getElementById('latestSection');
+    if (!section) return;
+
+    const wrap = document.createElement('div');
+    wrap.id    = 'indexPagination';
+    wrap.className = 'pagination';
+
+    let html = `<button class="pg-btn${current===1?' disabled':''}" data-pg="${current-1}">‹ Prev</button>`;
+
+    const range = [1];
+    if (current > 3) range.push('...');
+    for (let i = Math.max(2,current-1); i <= Math.min(total-1,current+1); i++) range.push(i);
+    if (current < total-2) range.push('...');
+    if (total > 1) range.push(total);
+
+    range.forEach(p => {
+      if (p === '...') {
+        html += `<span class="pg-btn disabled" style="background:transparent;border:none">…</span>`;
+      } else {
+        html += `<button class="pg-btn${p===current?' active':''}" data-pg="${p}">${p}</button>`;
+      }
+    });
+
+    html += `<button class="pg-btn${current===total?' disabled':''}" data-pg="${current+1}">Next ›</button>`;
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('.pg-btn[data-pg]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pg = parseInt(btn.dataset.pg);
+        if (pg >= 1 && pg <= total) {
+          renderIndexGrid(pg);
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    section.appendChild(wrap);
+  }
+
+  // Listen for dataReady to patch
+  document.addEventListener('dataReady', () => {
+    const origRG = window.renderGrid;
+    if (typeof origRG === 'function') {
+      window.renderGrid = function(gridId, items, limit) {
+        if (gridId === 'latestGrid') {
+          indexItems = items;
+          renderIndexGrid(1);
+          return;
+        }
+        origRG(gridId, items, limit || 10);
+      };
+    }
+  });
+})();

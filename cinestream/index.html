@@ -9,8 +9,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶</text></svg>" />
 </head>
 <body>
 
@@ -27,6 +25,7 @@
         <a href="#" class="nav-link" data-page="series">TV Series</a>
         <a href="#" class="nav-link" data-page="trending">Trending</a>
         <a href="#" class="nav-link" data-page="top250">Top 250</a>
+        <span class="nav-watchlist" id="navWatchlist">❤️ Watchlist <span class="wl-count" id="wlCount">0</span></span>
         <a href="watchlist.html" class="nav-link">❤️ Watchlist</a>
       </div>
       <div class="nav-right">
@@ -241,39 +240,24 @@
   <!-- PLAYER MODAL -->
   <div class="player-overlay" id="playerOverlay">
     <div class="player-container" id="playerContainer">
-  
-      <!-- Top bar -->
       <div class="player-header">
-        <div class="player-breadcrumb">
-          <a href="#" class="breadcrumb-home" id="breadcrumbHome">🏠 Movies</a>
-          <span class="breadcrumb-sep">→</span>
-          <span class="player-title" id="playerTitle"></span>
-        </div>
-        <div class="player-header-right">
-          <button class="player-btn" id="playerPip" title="Picture in Picture">⧉</button>
-          <button class="player-close" id="playerClose" title="Close">✕</button>
-        </div>
+        <span class="player-title" id="playerTitle"></span>
+        <button class="player-close" id="playerClose">✕</button>
       </div>
-  
-      <!-- Video -->
-      <div class="player-wrap" id="playerWrap">
+      <div class="player-wrap">
         <div class="player-screen" id="playerScreen">
           <div class="player-placeholder">
             <div class="player-logo">▶</div>
-            <p style="color:#fff;font-size:18px;margin-bottom:8px">Loading...</p>
+            <p>CineStream Player</p>
+            <p class="player-sub">Embed your video source URL in js/main.js</p>
           </div>
         </div>
       </div>
-  
-      <!-- Bottom bar -->
-      <div class="player-bottom" id="playerBottom">
+      <div class="player-sources" id="playerSources">
         <span class="sources-label">Servers:</span>
-        <button class="source-btn active" data-server="0">vidsrc.to</button>
-        <button class="source-btn" data-server="1">vidsrc.xyz</button>
-        <button class="source-btn" data-server="2">autoembed</button>
-        <button class="source-btn" data-server="3">embed.su</button>
-        <button class="source-btn" data-server="4">multiembed</button>
-        <button class="player-fullscreen-btn" id="playerFullscreen">⛶ Fullscreen</button>
+        <button class="source-btn active">Server 1</button>
+        <button class="source-btn">Server 2</button>
+        <button class="source-btn">Server 3</button>
       </div>
     </div>
   </div>
@@ -321,7 +305,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <p>© <span id="footerYear"></span> CineStream. All rights reserved.</p>
+        <p>© 2024 CineStream. All rights reserved. | For entertainment purposes only.</p>
         <p class="footer-disclaimer">We do not host any files on our servers. All content is provided by non-affiliated third parties.</p>
       </div>
     </div>

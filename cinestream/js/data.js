@@ -2,7 +2,7 @@
 // CineStream — Live Movie Data from TMDB API
 // =====================================================
 
-const API_KEY  = 'c3253a09433a2690c968a64a5788c6d4';
+const API_KEY  = 'YOUR_TMDB_API_KEY_HERE';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_URL  = 'https://image.tmdb.org/t/p/w500';
 const BACK_URL = 'https://image.tmdb.org/t/p/w1280';
@@ -31,111 +31,60 @@ async function fetchAllMovies() {
   for (let y = 1970; y <= currentYear; y++) years.push(y);
 
   const allMovies = [];
-  const BATCH_SIZE = 5;
 
-  for (let i = 0; i < years.length; i += BATCH_SIZE) {
-    const batch = years.slice(i, i + BATCH_SIZE);
-    const pct   = Math.round(((i + BATCH_SIZE) / years.length) * 100);
+  for (let i = 0; i < years.length; i++) {
+    const year = years[i];
+    const pct  = Math.round(((i + 1) / years.length) * 100);
 
+    // Update loading bar
     const bar = document.getElementById('loadBar');
     const msg = document.getElementById('loadMsg');
-    if (bar) bar.style.width = Math.min(pct, 100) + '%';
-    if (msg) msg.textContent = `Loading ${batch[0]}–${batch[batch.length-1]}... ${Math.min(pct,100)}%`;
+    if (bar) bar.style.width = pct + '%';
+    if (msg) msg.textContent = `Loading ${year} movies... ${pct}%`;
 
-    // Fetch pages 1, 2 and 3 for each year
-    const fetchPromises = [];
-    batch.forEach(year => {
-      // Recent years (last 2) — low vote threshold, 3 pages
-      // Older years — higher threshold, 1 page
-      const isRecent       = year >= currentYear - 1;
-      const pages          = isRecent ? [1, 2, 3] : [1];
-      const minVotes       = isRecent ? 5 : 80;
+    try {
+      const res  = await fetch(
+        `${BASE_URL}/discover/movie` +
+        `?api_key=${API_KEY}` +
+        `&primary_release_year=${year}` +
+        `&sort_by=popularity.desc` +
+        `&vote_count.gte=50` +
+        `&page=1`
+      );
+      const data = await res.json();
 
-      pages.forEach(page => {
-        fetchPromises.push(
-          fetch(
-            `${BASE_URL}/discover/movie?api_key=${API_KEY}` +
-            `&primary_release_year=${year}` +
-            `&sort_by=popularity.desc` +
-            `&vote_count.gte=${minVotes}` +
-            `&page=${page}`
-          ).then(r => r.json()).catch(() => ({ results: [] }))
-        );
-      });
-    });
-
-    const results = await Promise.allSettled(fetchPromises);
-
-    results.forEach(result => {
-      if (result.status === 'fulfilled' && result.value.results) {
-        result.value.results.forEach(m => {
-          if (!m.poster_path) return;
-          // Avoid duplicates
-          if (allMovies.find(x => x.id === m.id)) return;
-
+      if (data.results) {
+        data.results.forEach(m => {
+          if (!m.poster_path || !m.id) return;
           allMovies.push({
             id:       m.id,
-            title:    m.title,
-            year:     m.release_date
-                        ? new Date(m.release_date).getFullYear()
-                        : currentYear,
-            rating:   Math.round(m.vote_average * 10) / 10,
+            title:    m.title || 'Unknown Title',
+            year:     m.release_date ? new Date(m.release_date).getFullYear() : year,
+            rating:   Math.round((m.vote_average || 0) * 10) / 10,
             duration: '—',
-            genre:    getGenreName(m.genre_ids[0]),
+            genre:    getGenreName(m.genre_ids ? m.genre_ids[0] : 18),
             type:     'movie',
-            desc:     m.overview,
+            desc:     m.overview || 'No description available.',
             poster:   IMG_URL + m.poster_path,
-            backdrop: m.backdrop_path
-                        ? BACK_URL + m.backdrop_path
-                        : IMG_URL + m.poster_path,
-            tags:     m.popularity > 50 ? ['HD','Trending'] : ['HD'],
+            backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
+            tags:     m.popularity > 100 ? ['HD', 'Trending'] : ['HD'],
           });
         });
       }
-    });
+    } catch (e) {
+      console.warn(`[CineStream] Failed to fetch year ${year}:`, e.message);
+    }
 
-    await new Promise(r => setTimeout(r, 300));
+    // Small delay to respect API rate limits
+    await new Promise(r => setTimeout(r, 250));
   }
 
+  // Hide loader
   const loader = document.getElementById('loader');
   if (loader) loader.style.display = 'none';
 
   return allMovies;
 }
-
-// Search TMDB directly by title
-async function searchTMDB(query) {
-  try {
-    const res = await fetch(
-      `${BASE_URL}/search/movie?api_key=${API_KEY}` +
-      `&query=${encodeURIComponent(query)}` +
-      `&page=1`
-    );
-    const data = await res.json();
-    return data.results
-      .filter(m => m.poster_path)
-      .map(m => ({
-        id:       m.id,
-        title:    m.title,
-        year:     m.release_date
-                    ? new Date(m.release_date).getFullYear()
-                    : '—',
-        rating:   Math.round(m.vote_average * 10) / 10,
-        duration: '—',
-        genre:    getGenreName(m.genre_ids[0]),
-        type:     'movie',
-        desc:     m.overview,
-        poster:   IMG_URL + m.poster_path,
-        backdrop: m.backdrop_path
-                    ? BACK_URL + m.backdrop_path
-                    : IMG_URL + m.poster_path,
-        tags:     ['HD'],
-      }));
-  } catch(e) {
-    return [];
-  }
-}
-
 
 // ---- Fetch popular TV series ----
 async function fetchSeries() {
@@ -180,30 +129,32 @@ async function fetchSeries() {
 
 // ---- Boot: load everything ----
 async function initData() {
-  console.log('Loading movies from TMDB...');
+  console.log('[CineStream] Loading data...');
 
   try {
-    // Load series fast first
-    const series = await fetchSeries();
-    SERIES = series;
-
-    // Start loading movies
-    const movies = await fetchAllMovies();
+    // Load movies and series in parallel
+    const [movies, series] = await Promise.all([
+      fetchAllMovies(),
+      fetchSeries(),
+    ]);
 
     MOVIES      = movies;
+    SERIES      = series;
     ALL_CONTENT = [...movies, ...series];
     HERO_ITEMS  = movies
       .filter(m => m.tags.includes('Trending'))
       .slice(0, 5);
 
-    console.log(`✅ Loaded: ${movies.length} movies, ${series.length} series`);
+    console.log(`[CineStream] Phase 1: ${movies.length} movies, ${series.length} series`);
+    console.log(`[CineStream] Phase 2: ${ALL_CONTENT.length} movies total`);
+
+    // Tell main.js data is ready
     document.dispatchEvent(new Event('dataReady'));
 
-  } catch(e) {
-    console.error('Failed to load data:', e);
-    // Hide loader even on error
-    const loader = document.getElementById('loader');
-    if (loader) loader.style.display = 'none';
+  } catch (e) {
+    console.error('[CineStream] Failed to load data:', e);
+    // Dispatch anyway so UI doesn't stay blank
+    document.dispatchEvent(new Event('dataReady'));
   }
 }
 
