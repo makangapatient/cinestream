@@ -241,28 +241,31 @@
   <!-- PLAYER MODAL -->
   <div class="player-overlay" id="playerOverlay">
     <div class="player-container" id="playerContainer">
+  
+      <!-- Top bar -->
       <div class="player-header">
-        <!-- Breadcrumb -->
         <div class="player-breadcrumb">
           <a href="#" class="breadcrumb-home" id="breadcrumbHome">🏠 Movies</a>
           <span class="breadcrumb-sep">→</span>
-          <span class="player-title" id="playerTitle">Loading...</span>
+          <span class="player-title" id="playerTitle"></span>
         </div>
         <div class="player-header-right">
           <button class="player-btn" id="playerPip" title="Picture in Picture">⧉</button>
           <button class="player-close" id="playerClose" title="Close">✕</button>
         </div>
       </div>
-      </div>
-      <div class="player-wrap">
+  
+      <!-- Video -->
+      <div class="player-wrap" id="playerWrap">
         <div class="player-screen" id="playerScreen">
           <div class="player-placeholder">
             <div class="player-logo">▶</div>
-            <p>CineStream Player</p>
-            <p class="player-sub">Embed your video source URL in js/main.js</p>
+            <p style="color:#fff;font-size:18px;margin-bottom:8px">Loading...</p>
           </div>
         </div>
       </div>
+  
+      <!-- Bottom bar -->
       <div class="player-bottom" id="playerBottom">
         <span class="sources-label">Servers:</span>
         <button class="source-btn active" data-server="0">vidsrc.to</button>
@@ -270,9 +273,7 @@
         <button class="source-btn" data-server="2">autoembed</button>
         <button class="source-btn" data-server="3">embed.su</button>
         <button class="source-btn" data-server="4">multiembed</button>
-        <button class="player-fullscreen-btn" id="playerFullscreen">
-          ⛶ Fullscreen
-        </button>
+        <button class="player-fullscreen-btn" id="playerFullscreen">⛶ Fullscreen</button>
       </div>
     </div>
   </div>

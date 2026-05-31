@@ -396,23 +396,21 @@ function resetUiTimer() {
 };
 
      // Working embed servers (updated list)
-   if (type === 'series') {
-    currentServers = [
-      `https://vidsrc.to/embed/tv/${id}/1/1`,
-      `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=1&episode=1`,
-      `https://autoembed.co/tv/tmdb/${id}-1-1`,
-      `https://embed.su/embed/tv/${id}/1/1`,
-      `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=1`,
+    currentServers = item.type === 'series'
+  ? [
+      `https://vidsrc.to/embed/tv/${item.id}/1/1`,
+      `https://vidsrc.xyz/embed/tv/${item.id}/1-1`,
+      `https://player.autoembed.cc/embed/tv/${item.id}/1/1`,
+      `https://embed.su/embed/tv/${item.id}/1/1`,
+      `https://multiembed.mov/?video_id=${item.id}&tmdb=1&s=1&e=1`,
+    ]
+  : [
+      `https://vidsrc.to/embed/movie/${item.id}`,
+      `https://vidsrc.xyz/embed/movie/${item.id}`,
+      `https://player.autoembed.cc/embed/movie/${item.id}`,
+      `https://embed.su/embed/movie/${item.id}`,
+      `https://multiembed.mov/?video_id=${item.id}&tmdb=1`,
     ];
-   } else {
-    currentServers = [
-      `https://vidsrc.to/embed/movie/${id}`,
-      `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
-      `https://autoembed.co/movie/tmdb/${id}`,
-      `https://embed.su/embed/movie/${id}`,
-      `https://multiembed.mov/?video_id=${id}&tmdb=1`,
-    ];
-   }
 
    console.log('[Player] Servers:', currentServers);
 
