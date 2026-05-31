@@ -31,52 +31,56 @@ async function fetchAllMovies() {
   for (let y = 1970; y <= currentYear; y++) years.push(y);
 
   const allMovies = [];
+  const BATCH_SIZE = 5; // fetch 5 years at once
 
-  for (let i = 0; i < years.length; i++) {
-    const year = years[i];
-    const pct  = Math.round(((i + 1) / years.length) * 100);
+  for (let i = 0; i < years.length; i += BATCH_SIZE) {
+    const batch = years.slice(i, i + BATCH_SIZE);
+    const pct   = Math.round(((i + BATCH_SIZE) / years.length) * 100);
 
     // Update loading bar
     const bar = document.getElementById('loadBar');
     const msg = document.getElementById('loadMsg');
-    if (bar) bar.style.width = pct + '%';
-    if (msg) msg.textContent = `Loading ${year} movies... ${pct}%`;
+    if (bar) bar.style.width = Math.min(pct, 100) + '%';
+    if (msg) msg.textContent = `Loading ${batch[0]}–${batch[batch.length-1]} movies... ${Math.min(pct,100)}%`;
 
-    try {
-      const res  = await fetch(
-        `${BASE_URL}/discover/movie` +
-        `?api_key=${API_KEY}` +
-        `&primary_release_year=${year}` +
-        `&sort_by=popularity.desc` +
-        `&vote_count.gte=50` +
-        `&page=1`
-      );
-      const data = await res.json();
+    // Fetch all years in this batch simultaneously
+    const results = await Promise.allSettled(
+      batch.map(year =>
+        fetch(
+          `${BASE_URL}/discover/movie?api_key=${API_KEY}` +
+          `&primary_release_year=${year}` +
+          `&sort_by=popularity.desc` +
+          `&vote_count.gte=100` +
+          `&page=1`
+        ).then(r => r.json())
+      )
+    );
 
-      if (data.results) {
-        data.results.forEach(m => {
-          if (!m.poster_path || !m.id) return;
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value.results) {
+        result.value.results.forEach(m => {
+          if (!m.poster_path) return;
           allMovies.push({
             id:       m.id,
-            title:    m.title || 'Unknown Title',
-            year:     m.release_date ? new Date(m.release_date).getFullYear() : year,
-            rating:   Math.round((m.vote_average || 0) * 10) / 10,
+            title:    m.title,
+            year:     new Date(m.release_date).getFullYear(),
+            rating:   Math.round(m.vote_average * 10) / 10,
             duration: '—',
-            genre:    getGenreName(m.genre_ids ? m.genre_ids[0] : 18),
+            genre:    getGenreName(m.genre_ids[0]),
             type:     'movie',
-            desc:     m.overview || 'No description available.',
+            desc:     m.overview,
             poster:   IMG_URL + m.poster_path,
-            backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
-            tags:     m.popularity > 100 ? ['HD', 'Trending'] : ['HD'],
+            backdrop: m.backdrop_path
+              ? BACK_URL + m.backdrop_path
+              : IMG_URL + m.poster_path,
+            tags: m.popularity > 100 ? ['HD','Trending'] : ['HD'],
           });
         });
       }
-    } catch (e) {
-      console.warn(`[CineStream] Failed to fetch year ${year}:`, e.message);
-    }
+    });
 
-    // Small delay to respect API rate limits
-    await new Promise(r => setTimeout(r, 250));
+    // Small delay between batches to respect rate limit
+    await new Promise(r => setTimeout(r, 300));
   }
 
   // Hide loader
@@ -85,6 +89,8 @@ async function fetchAllMovies() {
 
   return allMovies;
 }
+
+
 
 // ---- Fetch popular TV series ----
 async function fetchSeries() {
@@ -129,32 +135,30 @@ async function fetchSeries() {
 
 // ---- Boot: load everything ----
 async function initData() {
-  console.log('[CineStream] Loading data...');
+  console.log('Loading movies from TMDB...');
 
   try {
-    // Load movies and series in parallel
-    const [movies, series] = await Promise.all([
-      fetchAllMovies(),
-      fetchSeries(),
-    ]);
+    // Load series fast first
+    const series = await fetchSeries();
+    SERIES = series;
+
+    // Start loading movies
+    const movies = await fetchAllMovies();
 
     MOVIES      = movies;
-    SERIES      = series;
     ALL_CONTENT = [...movies, ...series];
     HERO_ITEMS  = movies
       .filter(m => m.tags.includes('Trending'))
       .slice(0, 5);
 
-    console.log(`[CineStream] Phase 1: ${movies.length} movies, ${series.length} series`);
-    console.log(`[CineStream] Phase 2: ${ALL_CONTENT.length} movies total`);
-
-    // Tell main.js data is ready
+    console.log(`✅ Loaded: ${movies.length} movies, ${series.length} series`);
     document.dispatchEvent(new Event('dataReady'));
 
-  } catch (e) {
-    console.error('[CineStream] Failed to load data:', e);
-    // Dispatch anyway so UI doesn't stay blank
-    document.dispatchEvent(new Event('dataReady'));
+  } catch(e) {
+    console.error('Failed to load data:', e);
+    // Hide loader even on error
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
   }
 }
 
