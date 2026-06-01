@@ -2,7 +2,7 @@
 // CineStream — Live Movie Data from TMDB API
 // =====================================================
 
-const API_KEY  = 'YOUR_TMDB_API_KEY_HERE';
+const API_KEY = 'c3253a09433a2690c968a64a5788c6d4';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_URL  = 'https://image.tmdb.org/t/p/w500';
 const BACK_URL = 'https://image.tmdb.org/t/p/w1280';
