@@ -206,104 +206,48 @@ let uiHideTimer;
   const searchInput    = $('searchInput');
   const searchDropdown = $('searchDropdown');
 
-
-     // Make sure BASE_URL and IMG_URL are available
-  const BASE_URL = typeof window.BASE_URL !== 'undefined'
-     ? window.BASE_URL : 'https://api.themoviedb.org/3';
-  const IMG_URL  = 'https://image.tmdb.org/t/p/w500';
-  const BACK_URL = 'https://image.tmdb.org/t/p/w1280';
- 
-
-  searchInput.addEventListener('input', async () => {
-  const q = searchInput.value.trim();
-  if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
-
-  // Search TMDB live for movies AND TV shows simultaneously
-  const [movRes, tvRes] = await Promise.all([
-    fetch(`${BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(q)}&page=1`)
-      .then(r => r.json()).catch(() => ({ results: [] })),
-    fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&query=${encodeURIComponent(q)}&page=1`)
-      .then(r => r.json()).catch(() => ({ results: [] })),
-  ]);
-
-  // Merge results — movies first, then series
-  const movies = (movRes.results || [])
-    .filter(m => m.poster_path)
-    .slice(0, 5)
-    .map(m => ({
-      id:       m.id,
-      title:    m.title,
-      year:     m.release_date ? m.release_date.slice(0, 4) : '—',
-      rating:   Math.round((m.vote_average || 0) * 10) / 10,
-      type:     'movie',
-      genre:    getGenreName(m.genre_ids?.[0]),
-      desc:     m.overview || '',
-      poster:   IMG_URL  + m.poster_path,
-      backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
-      tags:     ['HD'],
-      duration: '—',
-    }));
-
-  const shows = (tvRes.results || [])
-    .filter(s => s.poster_path)
-    .slice(0, 3)
-    .map(s => ({
-      id:       s.id,
-      title:    s.name,
-      year:     s.first_air_date ? s.first_air_date.slice(0, 4) : '—',
-      rating:   Math.round((s.vote_average || 0) * 10) / 10,
-      type:     'series',
-      genre:    getGenreName(s.genre_ids?.[0]),
-      desc:     s.overview || '',
-      poster:   IMG_URL  + s.poster_path,
-      backdrop: s.backdrop_path ? BACK_URL + s.backdrop_path : IMG_URL + s.poster_path,
-      tags:     ['HD', 'Series'],
-      duration: '—',
-    }));
-
-  const results = [...movies, ...shows].slice(0, 8);
-
-  // Add live results to ALL_CONTENT so modal works
-  results.forEach(item => {
-    if (!ALL_CONTENT.find(x => x.id === item.id && x.type === item.type)) {
-      ALL_CONTENT.push(item);
-      if (item.type === 'movie') MOVIES.push(item);
-      else SERIES.push(item);
-    }
-  });
-
-  searchDropdown.innerHTML = results.length
-    ? results.map(m => `
-        <div class="search-result-item" data-id="${m.id}" data-type="${m.type}">
-          <img src="${m.poster}" alt="${m.title}" onerror="this.style.display='none'">
-          <div class="search-result-info">
-            <strong>${m.title}</strong>
-            <span>
-              ⭐ ${m.rating} · ${m.year} · ${m.genre}
-              ${m.type === 'series'
-                ? '<span style="color:#00d4ff;font-size:10px;font-weight:700;margin-left:4px">📺 SERIES</span>'
-                : '<span style="color:#e50914;font-size:10px;font-weight:700;margin-left:4px">🎬 MOVIE</span>'}
-            </span>
-          </div>
-        </div>`).join('')
-    : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
-
-  searchDropdown.classList.add('open');
-
-  searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const id   = parseInt(el.dataset.id);
-      const type = el.dataset.type;
-      const item = ALL_CONTENT.find(m => m.id === id && m.type === type);
-      if (item) {
-        openModal(item);
-        searchDropdown.classList.remove('open');
-        searchInput.value = '';
-      }
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
+    const results = ALL_CONTENT.filter(m =>
+      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
+    ).slice(0, 8);
+    searchDropdown.innerHTML = results.length
+      ? results.map(m => `
+          <div class="search-result-item" data-id="${m.id}">
+            <img src="${m.poster}" alt="${m.title}" onerror="this.src=''">
+            <div class="search-result-info">
+              <strong>${m.title}</strong>
+              <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
+            </div>
+          </div>`).join('')
+      : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
+    searchDropdown.classList.add('open');
+    searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
+        if (item) { openModal(item); searchDropdown.classList.remove('open'); searchInput.value = ''; }
+      });
     });
   });
-}); 
-   
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
+  });
+
+  $('searchBtn').addEventListener('click', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) return;
+    const filtered = ALL_CONTENT.filter(m =>
+      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
+    );
+    renderGrid('latestGrid', filtered.length ? filtered : ALL_CONTENT, 24);
+    searchDropdown.classList.remove('open');
+    scrollToLatest();
+  });
+
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
+
   /* ====================================================
      MODAL
   ==================================================== */
@@ -776,3 +720,244 @@ if (navWl) {
     }
   });
 })();
+
+
+/* ====================================================
+   PLAYER — Auto Server Detection
+==================================================== */
+let currentItem    = null;
+let currentSeason  = 1;
+let currentEpisode = 1;
+let currentUrl     = '';
+let uiHideTimer;
+
+function openPlayer(item, season, episode) {
+  currentItem    = item;
+  currentSeason  = season  || 1;
+  currentEpisode = episode || 1;
+
+  $('playerTitle').textContent = item.title;
+
+  // Breadcrumb click
+  const bc = $('breadcrumbHome');
+  if (bc) {
+    bc.onclick = e => { e.preventDefault(); closePlayer(); window.scrollTo({top:0,behavior:'smooth'}); };
+  }
+
+  // Show player immediately with loading state
+  $('playerOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  resetUiTimer();
+
+  // Show loading screen inside player
+  $('playerScreen').innerHTML = `
+    <div style="text-align:center;color:#fff">
+      <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,.1);
+        border-top-color:#e50914;border-radius:50%;
+        animation:spin .8s linear infinite;margin:0 auto 20px"></div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;
+        letter-spacing:2px;margin-bottom:8px">${item.title}</div>
+      <div id="serverStatus" style="font-size:13px;color:#7a7a90">
+        Finding best server...
+      </div>
+    </div>`;
+
+  // Update status element
+  const setStatus = msg => {
+    const el = document.getElementById('serverStatus');
+    if (el) el.textContent = msg;
+  };
+
+  // Check cache first (instant)
+  const cacheKey = `${item.type}_${item.id}_${currentSeason}_${currentEpisode}`;
+  const cache    = JSON.parse(localStorage.getItem('cs_server_cache') || '{}');
+
+  if (cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < 1000 * 60 * 60 * 6) {
+    const cached = cache[cacheKey];
+    setStatus(`✅ Using ${cached.name}`);
+    setTimeout(() => loadServer(cached.url), 400);
+    return;
+  }
+
+  // Try alive servers first (from pre-check), then find best
+  const aliveList = item.type === 'series'
+    ? JSON.parse(localStorage.getItem('cs_alive_tv')    || '[]')
+    : JSON.parse(localStorage.getItem('cs_alive_movie') || '[]');
+
+  const allServers = item.type === 'series'
+    ? ServerChecker.TV_SERVERS
+    : ServerChecker.MOVIE_SERVERS;
+
+  // Build ordered list: alive servers first, then rest
+  const ordered = [
+    ...allServers.filter(s => aliveList.includes(s.name)),
+    ...allServers.filter(s => !aliveList.includes(s.name)),
+  ];
+
+  let tried  = 0;
+  let loaded = false;
+
+  function tryNext() {
+    if (tried >= ordered.length || loaded) {
+      if (!loaded) {
+        // All failed — show error with manual retry
+        $('playerScreen').innerHTML = `
+          <div style="text-align:center;color:#fff;padding:20px">
+            <div style="font-size:48px;margin-bottom:16px">😔</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;
+              letter-spacing:2px;margin-bottom:12px">No Working Server Found</div>
+            <p style="color:#7a7a90;font-size:14px;margin-bottom:20px">
+              All servers are currently unavailable for this title.
+            </p>
+            <button onclick="openPlayer(currentItem, currentSeason, currentEpisode)"
+              style="padding:10px 24px;background:#e50914;color:#fff;border:none;
+              border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">
+              🔄 Try Again
+            </button>
+          </div>`;
+      }
+      return;
+    }
+
+    const server = ordered[tried];
+    const url    = item.type === 'series'
+      ? server.url(item.id, currentSeason, currentEpisode)
+      : server.url(item.id);
+
+    tried++;
+    setStatus(`Testing ${server.name}... (${tried}/${ordered.length})`);
+
+    // Test with hidden iframe
+    const testFrame = document.createElement('iframe');
+    testFrame.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px';
+    testFrame.src = url;
+
+    const timer = setTimeout(() => {
+      testFrame.remove();
+      tryNext(); // Server too slow, try next
+    }, 5000);
+
+    testFrame.onload = () => {
+      clearTimeout(timer);
+      testFrame.remove();
+      if (!loaded) {
+        loaded     = true;
+        currentUrl = url;
+        // Cache success
+        cache[cacheKey] = { url, name: server.name, quality: server.quality, timestamp: Date.now() };
+        localStorage.setItem('cs_server_cache', JSON.stringify(cache));
+        setStatus(`✅ ${server.name} — Loading...`);
+        setTimeout(() => loadServer(url, server.name), 300);
+      }
+    };
+
+    testFrame.onerror = () => {
+      clearTimeout(timer);
+      testFrame.remove();
+      tryNext();
+    };
+
+    document.body.appendChild(testFrame);
+  }
+
+  tryNext();
+}
+
+function loadServer(url, serverName) {
+  const screen = $('playerScreen');
+  if (!screen) return;
+  currentUrl = url;
+
+  screen.innerHTML = `
+    <iframe
+      src="${url}"
+      allowfullscreen
+      allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+      referrerpolicy="no-referrer"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-pointer-lock"
+      style="width:100%;height:100%;border:none">
+    </iframe>`;
+
+  // Update server indicator
+  const indicator = $('serverIndicator');
+  if (indicator && serverName) {
+    indicator.textContent = `▶ ${serverName}`;
+    indicator.style.display = 'inline-flex';
+  }
+}
+
+function retryNextServer() {
+  if (!currentItem) return;
+  const { url, name } = ServerChecker.getNextServer(currentItem, currentUrl, currentSeason, currentEpisode);
+  currentUrl = url;
+  showToast(`Trying ${name}...`);
+  loadServer(url, name);
+}
+
+function toggleFullscreen() {
+  const el = $('playerOverlay');
+  if (!document.fullscreenElement) {
+    el.requestFullscreen().catch(() => showToast('Fullscreen not supported'));
+    const btn = $('playerFullscreen');
+    if (btn) btn.innerHTML = '⊠ Exit';
+  } else {
+    document.exitFullscreen();
+    const btn = $('playerFullscreen');
+    if (btn) btn.innerHTML = '⛶ Fullscreen';
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const btn = $('playerFullscreen');
+  if (btn) btn.innerHTML = document.fullscreenElement ? '⊠ Exit' : '⛶ Fullscreen';
+});
+
+function resetUiTimer() {
+  const overlay = $('playerOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hide-ui');
+  clearTimeout(uiHideTimer);
+  uiHideTimer = setTimeout(() => overlay.classList.add('hide-ui'), 4000);
+}
+
+function closePlayer() {
+  $('playerOverlay').classList.remove('open','hide-ui');
+  $('playerScreen').innerHTML = '';
+  clearTimeout(uiHideTimer);
+  if (document.fullscreenElement) document.exitFullscreen();
+  document.body.style.overflow = '';
+  currentItem = null;
+  currentUrl  = '';
+}
+
+// Player controls
+const playerClose = $('playerClose');
+if (playerClose) playerClose.addEventListener('click', closePlayer);
+
+const playerOverlay = $('playerOverlay');
+if (playerOverlay) {
+  playerOverlay.addEventListener('click', e => { if (e.target === playerOverlay) closePlayer(); });
+  playerOverlay.addEventListener('mousemove', resetUiTimer);
+  playerOverlay.addEventListener('touchstart', resetUiTimer);
+}
+
+const playerFullscreen = $('playerFullscreen');
+if (playerFullscreen) playerFullscreen.addEventListener('click', toggleFullscreen);
+
+const playerRetry = $('playerRetry');
+if (playerRetry) playerRetry.addEventListener('click', retryNextServer);
+
+const playerPip = $('playerPip');
+if (playerPip) playerPip.onclick = () => showToast('📺 Use browser PiP button in the address bar');
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closePlayer(); }
+  if (e.key === 'f' && $('playerOverlay')?.classList.contains('open')) toggleFullscreen();
+  if (e.key === '/' && !e.target.matches('input,textarea')) { e.preventDefault(); searchInput?.focus(); }
+});
+
+// Pre-check servers in background after page loads (non-blocking)
+setTimeout(() => {
+  ServerChecker.preCheckServers().catch(() => {});
+}, 3000);

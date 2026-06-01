@@ -224,12 +224,11 @@
         <div class="player-placeholder"><div class="player-logo">▶</div><p>Loading...</p></div>
       </div>
     </div>
-    <div class="player-bottom" id="playerBottom">
-      <span class="sources-label">Servers:</span>
-      <button class="source-btn active" data-server="0">vidsrc.to</button>
-      <button class="source-btn" data-server="1">vidsrc.xyz</button>
-      <button class="source-btn" data-server="2">autoembed</button>
-      <button class="source-btn" data-server="3">embed.su</button>
+        <div class="player-bottom" id="playerBottom">
+      <div style="display:flex;align-items:center;gap:8px;flex:1">
+        <span style="font-size:12px;color:rgba(255,255,255,.4)">🔒 Auto-selected best server</span>
+        <span id="serverIndicator2" style="font-size:12px;color:#10b981;font-weight:600"></span>
+      </div>
       <button class="player-fullscreen-btn" id="playerFullscreen">⛶ Fullscreen</button>
     </div>
   </div>
@@ -251,7 +250,8 @@
 </footer>
 <div class="toast" id="toast"></div>
 
-<script src="js/data.js"></script>
+<script src="js/server-checker.js"></script>
+  <script src="js/data.js"></script>
 <script src="js/main.js"></script>
 <script>
 (function() {
