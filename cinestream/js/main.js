@@ -206,48 +206,104 @@ let uiHideTimer;
   const searchInput    = $('searchInput');
   const searchDropdown = $('searchDropdown');
 
-  searchInput.addEventListener('input', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
-    const results = ALL_CONTENT.filter(m =>
-      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
-    ).slice(0, 8);
-    searchDropdown.innerHTML = results.length
-      ? results.map(m => `
-          <div class="search-result-item" data-id="${m.id}">
-            <img src="${m.poster}" alt="${m.title}" onerror="this.src=''">
-            <div class="search-result-info">
-              <strong>${m.title}</strong>
-              <span>⭐ ${m.rating} · ${m.year} · ${m.genre}</span>
-            </div>
-          </div>`).join('')
-      : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
-    searchDropdown.classList.add('open');
-    searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const item = ALL_CONTENT.find(m => m.id === parseInt(el.dataset.id));
-        if (item) { openModal(item); searchDropdown.classList.remove('open'); searchInput.value = ''; }
-      });
+
+     // Make sure BASE_URL and IMG_URL are available
+  const BASE_URL = typeof window.BASE_URL !== 'undefined'
+     ? window.BASE_URL : 'https://api.themoviedb.org/3';
+  const IMG_URL  = 'https://image.tmdb.org/t/p/w500';
+  const BACK_URL = 'https://image.tmdb.org/t/p/w1280';
+ 
+
+  searchInput.addEventListener('input', async () => {
+  const q = searchInput.value.trim();
+  if (q.length < 2) { searchDropdown.classList.remove('open'); return; }
+
+  // Search TMDB live for movies AND TV shows simultaneously
+  const [movRes, tvRes] = await Promise.all([
+    fetch(`${BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(q)}&page=1`)
+      .then(r => r.json()).catch(() => ({ results: [] })),
+    fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&query=${encodeURIComponent(q)}&page=1`)
+      .then(r => r.json()).catch(() => ({ results: [] })),
+  ]);
+
+  // Merge results — movies first, then series
+  const movies = (movRes.results || [])
+    .filter(m => m.poster_path)
+    .slice(0, 5)
+    .map(m => ({
+      id:       m.id,
+      title:    m.title,
+      year:     m.release_date ? m.release_date.slice(0, 4) : '—',
+      rating:   Math.round((m.vote_average || 0) * 10) / 10,
+      type:     'movie',
+      genre:    getGenreName(m.genre_ids?.[0]),
+      desc:     m.overview || '',
+      poster:   IMG_URL  + m.poster_path,
+      backdrop: m.backdrop_path ? BACK_URL + m.backdrop_path : IMG_URL + m.poster_path,
+      tags:     ['HD'],
+      duration: '—',
+    }));
+
+  const shows = (tvRes.results || [])
+    .filter(s => s.poster_path)
+    .slice(0, 3)
+    .map(s => ({
+      id:       s.id,
+      title:    s.name,
+      year:     s.first_air_date ? s.first_air_date.slice(0, 4) : '—',
+      rating:   Math.round((s.vote_average || 0) * 10) / 10,
+      type:     'series',
+      genre:    getGenreName(s.genre_ids?.[0]),
+      desc:     s.overview || '',
+      poster:   IMG_URL  + s.poster_path,
+      backdrop: s.backdrop_path ? BACK_URL + s.backdrop_path : IMG_URL + s.poster_path,
+      tags:     ['HD', 'Series'],
+      duration: '—',
+    }));
+
+  const results = [...movies, ...shows].slice(0, 8);
+
+  // Add live results to ALL_CONTENT so modal works
+  results.forEach(item => {
+    if (!ALL_CONTENT.find(x => x.id === item.id && x.type === item.type)) {
+      ALL_CONTENT.push(item);
+      if (item.type === 'movie') MOVIES.push(item);
+      else SERIES.push(item);
+    }
+  });
+
+  searchDropdown.innerHTML = results.length
+    ? results.map(m => `
+        <div class="search-result-item" data-id="${m.id}" data-type="${m.type}">
+          <img src="${m.poster}" alt="${m.title}" onerror="this.style.display='none'">
+          <div class="search-result-info">
+            <strong>${m.title}</strong>
+            <span>
+              ⭐ ${m.rating} · ${m.year} · ${m.genre}
+              ${m.type === 'series'
+                ? '<span style="color:#00d4ff;font-size:10px;font-weight:700;margin-left:4px">📺 SERIES</span>'
+                : '<span style="color:#e50914;font-size:10px;font-weight:700;margin-left:4px">🎬 MOVIE</span>'}
+            </span>
+          </div>
+        </div>`).join('')
+    : '<div style="padding:16px;text-align:center;color:#7a7a90;font-size:13px">No results found</div>';
+
+  searchDropdown.classList.add('open');
+
+  searchDropdown.querySelectorAll('.search-result-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id   = parseInt(el.dataset.id);
+      const type = el.dataset.type;
+      const item = ALL_CONTENT.find(m => m.id === id && m.type === type);
+      if (item) {
+        openModal(item);
+        searchDropdown.classList.remove('open');
+        searchInput.value = '';
+      }
     });
   });
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
-  });
-
-  $('searchBtn').addEventListener('click', () => {
-    const q = searchInput.value.trim().toLowerCase();
-    if (!q) return;
-    const filtered = ALL_CONTENT.filter(m =>
-      m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q)
-    );
-    renderGrid('latestGrid', filtered.length ? filtered : ALL_CONTENT, 24);
-    searchDropdown.classList.remove('open');
-    scrollToLatest();
-  });
-
-  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') $('searchBtn').click(); });
-
+}); 
+   
   /* ====================================================
      MODAL
   ==================================================== */
