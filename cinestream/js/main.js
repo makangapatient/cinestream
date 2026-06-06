@@ -728,8 +728,7 @@ if (navWl) {
 let currentItem    = null;
 let currentSeason  = 1;
 let currentEpisode = 1;
-let currentUrl     = '';
-let uiHideTimer;
+let currentUrl = '';
 
 function openPlayer(item, season, episode) {
   currentItem    = item;
