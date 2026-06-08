@@ -201,3 +201,57 @@
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ====================================================
+   FILTER PANELS — index.html
+==================================================== */
+.sub-filter {
+  display: none;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  max-height: 120px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.2) transparent;
+}
+.sub-filter.visible {
+  display: flex !important;
+}
+.sub-filter::-webkit-scrollbar { height: 4px; width: 4px; }
+.sub-filter::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 2px; }
+
+.sfbtn {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7a7a90;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.1);
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.sfbtn:hover {
+  color: #fff;
+  background: rgba(255,255,255,.08);
+}
+.sfbtn.active {
+  background: #f5c518 !important;
+  border-color: #f5c518 !important;
+  color: #000 !important;
+  font-weight: 700;
+}
+
+/* Year sub-filter scrolls horizontally */
+#panel-year, #sub-year {
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  max-height: none !important;
+  padding-bottom: 4px;
+}
