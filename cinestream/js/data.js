@@ -5,7 +5,7 @@ window.CS_BASE_URL = 'https://api.themoviedb.org/3';
 window.CS_IMG_URL  = 'https://image.tmdb.org/t/p/w500';
 window.CS_BACK_URL = 'https://image.tmdb.org/t/p/w1280';
 
-// Expose as globals for legacy code
+// Global aliases
 const API_KEY  = window.CS_API_KEY;
 const BASE_URL = window.CS_BASE_URL;
 const IMG_URL  = window.CS_IMG_URL;
@@ -39,8 +39,10 @@ function mapMovie(m) {
     genre:      getGenreName(m.genre_ids?.[0]),
     type:       'movie',
     desc:       m.overview || '',
+    // Always provide poster and backdrop — use poster as fallback
     poster:     m.poster_path   ? IMG_URL  + m.poster_path   : '',
-    backdrop:   m.backdrop_path ? BACK_URL + m.backdrop_path : '',
+    backdrop:   m.backdrop_path ? BACK_URL + m.backdrop_path
+                                : (m.poster_path ? IMG_URL + m.poster_path : ''),
     tags:       m.popularity > 100 ? ['HD','Trending'] : ['HD'],
     popularity: m.popularity || 0,
   };
@@ -57,7 +59,8 @@ function mapSeries(s) {
     type:       'series',
     desc:       s.overview || '',
     poster:     s.poster_path   ? IMG_URL  + s.poster_path   : '',
-    backdrop:   s.backdrop_path ? BACK_URL + s.backdrop_path : '',
+    backdrop:   s.backdrop_path ? BACK_URL + s.backdrop_path
+                                : (s.poster_path ? IMG_URL + s.poster_path : ''),
     tags:       ['HD','Series'],
     seasons:    s.number_of_seasons || 1,
     popularity: s.popularity || 0,
@@ -67,7 +70,7 @@ function mapSeries(s) {
 async function tmdbFetch(url) {
   try {
     const r = await fetch(url);
-    if (!r.ok) { console.error('TMDB error:', r.status); return { results: [] }; }
+    if (!r.ok) { console.error('TMDB error:', r.status, url); return { results: [] }; }
     return await r.json();
   } catch(e) {
     console.error('Fetch failed:', e.message);
@@ -86,6 +89,7 @@ async function initData() {
       tmdbFetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&language=en-US&page=1`),
     ]);
 
+    // Merge + deduplicate — trending first for hero priority
     const seen = new Set();
     const raw  = [
       ...(trending.results  || []),
@@ -95,26 +99,52 @@ async function initData() {
     ];
 
     MOVIES = raw
-      .filter(m => { if (!m.poster_path || seen.has(m.id)) return false; seen.add(m.id); return true; })
+      .filter(m => {
+        if (!m.poster_path || seen.has(m.id)) return false;
+        seen.add(m.id); return true;
+      })
       .map(mapMovie);
 
-    SERIES = (tvPop.results || []).filter(s => s.poster_path).map(mapSeries);
+    SERIES = (tvPop.results || [])
+      .filter(s => s.poster_path)
+      .map(mapSeries);
 
-    HERO_ITEMS = MOVIES.filter(m => m.backdrop).slice(0, 5);
-
+    // Mark trending
     const trendIds = new Set((trending.results || []).map(m => m.id));
-    MOVIES.forEach(m => { if (trendIds.has(m.id)) m.tags = ['HD','Trending']; });
+    MOVIES.forEach(m => {
+      if (trendIds.has(m.id)) m.tags = ['HD','Trending'];
+    });
+
+    // Hero = first 5 trending movies (all have poster as backdrop fallback)
+    HERO_ITEMS = MOVIES
+      .filter(m => trendIds.has(m.id))
+      .slice(0, 5);
+
+    // If no trending found, just use first 5 movies
+    if (!HERO_ITEMS.length) {
+      HERO_ITEMS = MOVIES.slice(0, 5);
+    }
 
     ALL_CONTENT = [...MOVIES, ...SERIES];
-    console.log(`✅ Loaded: ${MOVIES.length} movies | ${SERIES.length} series`);
+
+    console.log(
+      `✅ Loaded: ${MOVIES.length} movies | ${SERIES.length} series | ${HERO_ITEMS.length} hero`
+    );
+
+    // Debug hero items
+    HERO_ITEMS.forEach((m,i) =>
+      console.log(`Hero[${i}]: ${m.title} | backdrop: ${m.backdrop ? '✅' : '❌'} | poster: ${m.poster ? '✅' : '❌'}`)
+    );
+
   } catch(e) {
-    console.error('initData failed:', e);
+    console.error('❌ initData failed:', e);
   }
 
   window.__dataReady = true;
   document.dispatchEvent(new CustomEvent('dataReady', {
-    detail: { movies: MOVIES.length, series: SERIES.length }
+    detail: { movies: MOVIES.length, series: SERIES.length, hero: HERO_ITEMS.length }
   }));
 }
 
 initData();
+
